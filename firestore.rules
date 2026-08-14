@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function shopIsLive(shopData) {
+      return shopData.status == "live";
+    }
+
+    function ownsShop(shopId) {
+      return isSignedIn() &&
+        get(/databases/$(database)/documents/shops/$(shopId)).data.ownerId == request.auth.uid;
+    }
+
+    // users/{uid} — self only.
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // localities — read-only reference data, seeded server-side.
+    match /localities/{localityId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // shops/{shopId}
+    match /shops/{shopId} {
+      allow read: if shopIsLive(resource.data) || (isSignedIn() && resource.data.ownerId == request.auth.uid);
+
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+
+      allow update: if isSignedIn() &&
+        resource.data.ownerId == request.auth.uid &&
+        request.resource.data.ownerId == resource.data.ownerId;
+
+      allow delete: if false;
+
+      // shops/{shopId}/products/{productId}
+      match /products/{productId} {
+        allow read: if shopIsLive(get(/databases/$(database)/documents/shops/$(shopId)).data) ||
+          ownsShop(shopId);
+        allow write: if ownsShop(shopId);
+      }
+    }
+
+    // orders/{orderId} — top-level, queried by both buyer and shop owner.
+    match /orders/{orderId} {
+      allow read: if isSignedIn() &&
+        (resource.data.buyerId == request.auth.uid || ownsShop(resource.data.shopId));
+
+      allow create: if isSignedIn() &&
+        request.resource.data.buyerId == request.auth.uid &&
+        request.resource.data.status == "PLACED";
+
+      // Buyer or shop owner may only ever change status/timeline/rejectionReason/updatedAt.
+      // items and itemTotal are frozen at creation time — never mutable.
+      allow update: if isSignedIn() &&
+        (resource.data.buyerId == request.auth.uid || ownsShop(resource.data.shopId)) &&
+        request.resource.data.items == resource.data.items &&
+        request.resource.data.itemTotal == resource.data.itemTotal &&
+        request.resource.data.buyerId == resource.data.buyerId &&
+        request.resource.data.shopId == resource.data.shopId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(["status", "timeline", "rejectionReason", "updatedAt"]);
+
+      allow delete: if false;
+    }
+  }
+}
