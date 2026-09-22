@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mic, MicOff, Loader2, Sparkles, Send } from "lucide-react";
+import { Mic, MicOff, Loader2, Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -15,39 +14,54 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useVoiceInput, VOICE_LANGUAGES, type VoiceLanguage } from "@/lib/hooks/use-voice-input";
-import { useCartStore, type CartItem } from "@/lib/store/cart";
 import { confirmApproval, rejectApproval } from "@/actions/ai";
+import type { BulkImportResult } from "@/actions/products";
+import type { ProductDoc } from "@/types";
+
+interface DraftItem {
+  name: string;
+  unit: string;
+  category: string;
+  price: number; // rupees
+  stock: number;
+  confidence: number;
+}
 
 interface DraftResponse {
-  approvalId: string | null;
+  approvalId: string;
+  items: DraftItem[];
   summary: string;
 }
 
-interface CartDraft {
-  shopId: string;
-  shopName: string;
-  items: CartItem[];
-}
+/** Below this, a row is highlighted for a second look before importing. */
+const LOW_CONFIDENCE = 0.6;
 
 type Stage = "input" | "loading" | "result" | "error";
 
 /**
- * Buyer-facing entry point for Step 4.2 (sentence -> cart), with a mic
- * option for a voice note alongside typing. Voice-to-text runs entirely in
- * the browser (Web Speech API) — only the resulting text is ever sent
- * anywhere, same as typed input; the mic audio itself never leaves the
- * device.
+ * Step 3.1 (Flow A), voice/text half — the shelf-photo half is explicitly
+ * deferred (see the roadmap status discussion). Owner speaks or types a
+ * stock update ("rice 5kg 60, dal 120"); stockDraft parses it and writes a
+ * draft the owner sees below before anything is actually imported. Confirm
+ * goes through the same bulkImportProducts path the JSON/CSV import uses.
  */
-export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | null }) {
-  const [open, setOpen] = useState(false);
+export function AiStockDialog({
+  shopId,
+  open,
+  onOpenChange,
+  onImported,
+}: {
+  shopId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onImported: (products: ProductDoc[]) => void;
+}) {
   const [language, setLanguage] = useState<VoiceLanguage>("en-IN");
   const [text, setText] = useState("");
   const [stage, setStage] = useState<Stage>("input");
   const [draft, setDraft] = useState<DraftResponse | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [busy, setBusy] = useState(false);
-  const router = useRouter();
-  const cart = useCartStore();
   const voice = useVoiceInput(language);
 
   function reset() {
@@ -68,27 +82,23 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
 
   async function submit() {
     if (!text.trim()) return;
-    if (!lat || !lng) {
-      toast.error("Set your location first so the AI can find a nearby shop.");
-      return;
-    }
     setStage("loading");
     try {
-      const res = await fetch("/api/ai/buyerCartDraft", {
+      const res = await fetch("/api/ai/stockDraft", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ input: text.trim(), lat, lng }),
+        body: JSON.stringify({ input: text.trim(), shopId }),
       });
       const body: { data?: DraftResponse; error?: string } = await res.json();
       if (!res.ok || !body.data) {
-        setErrorMsg(body.error ?? "The AI couldn't help with that just now — try browsing shops instead.");
+        setErrorMsg(body.error ?? "The AI couldn't parse that — try the JSON/CSV import instead.");
         setStage("error");
         return;
       }
       setDraft(body.data);
       setStage("result");
     } catch {
-      setErrorMsg("Couldn't reach the AI cart helper. Try browsing shops instead.");
+      setErrorMsg("Couldn't reach the AI helper. Try the JSON/CSV import instead.");
       setStage("error");
     }
   }
@@ -99,17 +109,20 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
     const result = await confirmApproval(draft.approvalId);
     setBusy(false);
     if (!result.ok) {
-      toast.error(result.error ?? "Could not apply this cart");
+      toast.error(result.error ?? "Could not import these items");
       return;
     }
-    const applied = (result.data as { draft?: CartDraft } | undefined)?.draft;
-    if (applied) {
-      cart.applyDraftItems(applied.shopId, applied.shopName, applied.items);
-      toast.success(`Added ${applied.items.length} item(s) to your cart`);
+    const imported = result.data as BulkImportResult | undefined;
+    if (imported?.products.length) {
+      onImported(imported.products);
+      toast.success(
+        imported.failed.length > 0
+          ? `Added ${imported.products.length} products, ${imported.failed.length} skipped`
+          : `Added ${imported.products.length} products`,
+      );
     }
-    setOpen(false);
+    onOpenChange(false);
     reset();
-    router.push("/cart");
   }
 
   async function reject() {
@@ -125,24 +138,16 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        setOpen(next);
+        onOpenChange(next);
         if (!next) reset();
       }}
     >
-      <Button
-        className="fixed bottom-20 right-4 z-40 h-12 gap-2 rounded-full px-4 shadow-lg sm:bottom-6"
-        onClick={() => setOpen(true)}
-      >
-        <Sparkles className="size-4" />
-        Ask AI to shop
-      </Button>
-
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Tell the AI what you need</DialogTitle>
+          <DialogTitle>Voice or text stock update</DialogTitle>
           <DialogDescription>
-            Type or use your voice — e.g. &quot;dal chawal for 4&quot;. It only ever drafts a cart; nothing is
-            ordered until you confirm.
+            Say or type what came in — e.g. &quot;rice 5kg 60, dal 120, atta 10kg 350&quot;. Nothing is added
+            until you confirm.
           </DialogDescription>
         </DialogHeader>
 
@@ -150,8 +155,12 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
           <div className="flex flex-col gap-3">
             <Textarea
               autoFocus
-              placeholder="dal chawal chahiye 4 logo ke liye…"
-              value={voice.status === "listening" && voice.interimTranscript ? `${text} ${voice.interimTranscript}`.trim() : text}
+              placeholder="rice 5kg 60, dal 120…"
+              value={
+                voice.status === "listening" && voice.interimTranscript
+                  ? `${text} ${voice.interimTranscript}`.trim()
+                  : text
+              }
               onChange={(e) => setText(e.target.value)}
               className="min-h-24"
             />
@@ -201,7 +210,7 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
             {voice.status === "denied" && (
               <p className="text-destructive text-xs">
                 Mic access was denied. Allow microphone access for this site in your browser settings, then tap the
-                mic again — or just type your request above.
+                mic again — or just type the update above.
               </p>
             )}
             {voice.status === "unsupported" && (
@@ -215,16 +224,37 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
         {stage === "loading" && (
           <div className="flex flex-col items-center gap-2 py-8">
             <Loader2 className="size-6 animate-spin" />
-            <p className="text-muted-foreground text-sm">Finding what you need nearby…</p>
+            <p className="text-muted-foreground text-sm">Parsing your stock update…</p>
           </div>
         )}
 
         {stage === "result" && draft && (
           <div className="flex flex-col gap-3">
             <p className="text-sm">{draft.summary}</p>
-            {!draft.approvalId && (
-              <p className="text-muted-foreground text-xs">Nothing to add yet — try rephrasing, or browse shops.</p>
-            )}
+            <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+              {draft.items.map((item, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs ${
+                    item.confidence < LOW_CONFIDENCE
+                      ? "border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/40"
+                      : "border-border"
+                  }`}
+                  title={
+                    item.confidence < LOW_CONFIDENCE
+                      ? "The AI wasn't fully sure about this row — check it before importing"
+                      : undefined
+                  }
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {item.name} · {item.unit} · {item.category}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">
+                    ₹{item.price.toFixed(2)} · qty {item.stock}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -234,20 +264,20 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
           {stage === "input" && (
             <Button className="min-h-11" disabled={!text.trim()} onClick={submit}>
               <Send className="size-4" />
-              Ask AI
+              Ask AI to parse this
             </Button>
           )}
-          {stage === "result" && draft?.approvalId && (
+          {stage === "result" && (
             <>
               <Button variant="outline" className="min-h-11" disabled={busy} onClick={reject}>
-                {busy ? <Loader2 className="size-4 animate-spin" /> : "Not this"}
+                {busy ? <Loader2 className="size-4 animate-spin" /> : "Discard"}
               </Button>
               <Button className="min-h-11" disabled={busy} onClick={confirm}>
-                {busy ? <Loader2 className="size-4 animate-spin" /> : "Add to cart"}
+                {busy ? <Loader2 className="size-4 animate-spin" /> : "Import these items"}
               </Button>
             </>
           )}
-          {(stage === "error" || (stage === "result" && !draft?.approvalId)) && (
+          {stage === "error" && (
             <Button variant="outline" className="min-h-11" onClick={reset}>
               Try again
             </Button>

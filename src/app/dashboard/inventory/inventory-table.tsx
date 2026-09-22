@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, Pencil, Loader2, Upload } from "lucide-react";
+import { Plus, Trash2, Pencil, Loader2, Upload, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ import {
 } from "@/actions/products";
 import { ProductFormDialog } from "./product-form-dialog";
 import { JsonImportDialog } from "./json-import-dialog";
+import { AiStockDialog } from "./ai-stock-dialog";
 
 export function InventoryTable({
   shopId,
@@ -40,6 +41,7 @@ export function InventoryTable({
   const [editing, setEditing] = useState<ProductDoc | null>(null);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [aiImporting, setAiImporting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<ProductDoc | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -114,6 +116,14 @@ export function InventoryTable({
             onClick={() => setImporting(true)}
           >
             <Upload className="size-4" /> Import JSON / CSV
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="min-h-9"
+            onClick={() => setAiImporting(true)}
+          >
+            <Sparkles className="size-4" /> Voice / text update
           </Button>
           <Button size="sm" className="min-h-9" onClick={() => setAdding(true)}>
             <Plus className="size-4" /> Add product
@@ -221,6 +231,12 @@ export function InventoryTable({
         shopId={shopId}
         open={importing}
         onOpenChange={setImporting}
+        onImported={(imported) => setProducts((prev) => [...imported, ...prev])}
+      />
+      <AiStockDialog
+        shopId={shopId}
+        open={aiImporting}
+        onOpenChange={setAiImporting}
         onImported={(imported) => setProducts((prev) => [...imported, ...prev])}
       />
       <ProductFormDialog

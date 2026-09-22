@@ -9,6 +9,7 @@ import { BillDialog } from "@/components/orders/order-bill";
 import { ReasonDialog } from "@/components/orders/reason-dialog";
 import { transitionOrder } from "@/actions/orders";
 import { formatPaise } from "@/lib/money";
+import { OrderAiSuggestion } from "./order-ai-suggestion";
 import type { OrderDoc, OrderStatus } from "@/types";
 
 export function OrderCard({
@@ -101,6 +102,15 @@ export function OrderCard({
             </Button>
           </>
         )}
+      </div>
+
+      {order.status === "PLACED" && (
+        <div className="mt-2">
+          <OrderAiSuggestion shopId={order.shopId} orderId={order.id} onApplied={onChanged} />
+        </div>
+      )}
+
+      <div className="mt-3 flex flex-wrap gap-2">
         {order.status === "ACCEPTED" && (
           <>
             <Button

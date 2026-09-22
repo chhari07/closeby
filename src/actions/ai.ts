@@ -37,9 +37,7 @@ export async function listMyApprovals(): Promise<ApprovalDoc[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ApprovalDoc, "id">) }));
 }
 
-export async function confirmApproval(
-  approvalId: string,
-): Promise<ActionResult<{ draft?: unknown }>> {
+export async function confirmApproval(approvalId: string): Promise<ActionResult<unknown>> {
   const userId = await requireUserId();
   const { ref, approval } = await loadOwnPendingApproval(approvalId, userId);
   if (!approval) return { ok: false, error: "Approval not found" };
@@ -68,10 +66,15 @@ export async function confirmApproval(
     result = { ok: true, data: approval.draft };
   }
 
-  if (!result.ok) return result as ActionResult<{ draft?: unknown }>;
+  if (!result.ok) return result;
 
   await ref.update({ status: "approved", decidedAt: Date.now() });
-  return { ok: true, data: approval.type === "draftCart" ? { draft: approval.draft } : undefined };
+  // draftCart has no underlying action result to hand back (see above) — give
+  // the caller the draft itself instead. draftOrderAdvice/draftStockList hand
+  // back whatever transitionOrder/bulkImportProducts actually returned (e.g.
+  // bulkImportProducts' {products, failed}), so the caller can update its own
+  // UI state the same way it would from a manual action call.
+  return { ok: true, data: approval.type === "draftCart" ? { draft: approval.draft } : result.data };
 }
 
 export async function rejectApproval(approvalId: string): Promise<ActionResult> {

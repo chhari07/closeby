@@ -79,9 +79,17 @@ export const HELPERS: Record<AiHelperName, HelperDef> = {
       "the real order and real stock levels — never assume an item is in or out " +
       "of stock. Call draftOrderAdvice with your decision (ACCEPT or REJECT), a " +
       "short reason the owner will read, and a confidence from 0 to 1, then " +
-      'answer ONLY with JSON: {"approvalId": string, "summary": string}.',
-    outputSchema: draftAnswerOutput.extend({ approvalId: z.string() }),
-    outputShapeHint: '{"approvalId": string, "summary": string}',
+      'answer ONLY with JSON: {"approvalId": string, "decision": "ACCEPT" | "REJECT", ' +
+      '"confidence": number, "summary": string} — decision and confidence must ' +
+      "match exactly what you passed to draftOrderAdvice.",
+    outputSchema: z.object({
+      approvalId: z.string(),
+      decision: z.enum(["ACCEPT", "REJECT"]),
+      confidence: z.number().min(0).max(1),
+      summary: z.string().max(500),
+    }),
+    outputShapeHint:
+      '{"approvalId": string, "decision": "ACCEPT" | "REJECT", "confidence": number, "summary": string}',
   },
 
   stockDraft: {
@@ -96,10 +104,29 @@ export const HELPERS: Record<AiHelperName, HelperDef> = {
       "rupees, and quantity; pick a short category for each (e.g. Grocery, " +
       "Dairy, Snacks). If a value is ambiguous, still give your best guess but " +
       "lower that item's confidence (0 to 1) — do not skip it. Call " +
-      'draftStockList with the parsed items, then answer ONLY with JSON: ' +
-      '{"approvalId": string, "summary": string}.',
-    outputSchema: draftAnswerOutput.extend({ approvalId: z.string() }),
-    outputShapeHint: '{"approvalId": string, "summary": string}',
+      "draftStockList with the parsed items, then answer ONLY with JSON: " +
+      '{"approvalId": string, "items": [{"name": string, "unit": string, ' +
+      '"category": string, "price": number, "stock": number, "confidence": ' +
+      'number}], "summary": string} — items must match exactly what you ' +
+      "passed to draftStockList, so the owner can see what's about to be added.",
+    outputSchema: z.object({
+      approvalId: z.string(),
+      items: z
+        .array(
+          z.object({
+            name: z.string(),
+            unit: z.string(),
+            category: z.string(),
+            price: z.number(),
+            stock: z.number(),
+            confidence: z.number().min(0).max(1),
+          }),
+        )
+        .min(1)
+        .max(50),
+      summary: z.string().max(500),
+    }),
+    outputShapeHint: '{"approvalId": string, "items": [...], "summary": string}',
   },
 };
 
