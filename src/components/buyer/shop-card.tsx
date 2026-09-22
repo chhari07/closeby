@@ -26,7 +26,11 @@ function formatDistance(m: number): string {
   return `${(m / 1000).toFixed(1)} km away`;
 }
 
-export function ShopCard({ shop, distanceInM }: NearbyShopResult) {
+export function ShopCard({
+  shop,
+  distanceInM,
+  matchedProductName,
+}: NearbyShopResult & { matchedProductName?: string }) {
   const Icon = ICONS[shop.type];
   return (
     <Link
@@ -41,6 +45,9 @@ export function ShopCard({ shop, distanceInM }: NearbyShopResult) {
         <p className="text-muted-foreground text-xs">
           {formatDistance(distanceInM)} · {shop.itemCount} items
         </p>
+        {matchedProductName && (
+          <p className="text-primary-ink truncate text-xs">Has: {matchedProductName}</p>
+        )}
       </div>
       <Badge variant={shop.isOpen ? "default" : "secondary"}>
         {shop.isOpen ? "Open" : "Closed"}

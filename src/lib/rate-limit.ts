@@ -17,6 +17,7 @@ export interface RateLimitRule {
 /** One rule per kind of action. Add AI helpers here later (Step 2). */
 export const RATE_LIMITS = {
   placeOrder: { limit: 10, windowMs: 60_000 },
+  reorder: { limit: 20, windowMs: 60_000 },
   transitionOrder: { limit: 60, windowMs: 60_000 },
   productWrite: { limit: 60, windowMs: 60_000 },
   productImport: { limit: 5, windowMs: 60_000 },

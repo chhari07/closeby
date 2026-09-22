@@ -19,6 +19,67 @@ export async function findNearbyShops(
   return getNearbyShops(origin, radiusInM);
 }
 
+export interface ProductMatchResult extends NearbyShopResult {
+  matchedProductName: string;
+}
+
+/** Bounds how many of the nearest shops' product collections a single
+ *  search reads — keeps a search-box query cheap and bounded rather than
+ *  scanning every nearby shop's whole catalog. */
+const MAX_SHOPS_TO_SCAN = 15;
+const MAX_PRODUCTS_PER_SHOP = 150;
+
+/**
+ * Step 4.1 (Hindi/Hinglish/English product search), the non-AI base
+ * version: a plain, case-insensitive substring match against each
+ * product's name and its aliases (Step 1.10 — "chawal", "doodh", etc.).
+ * No model call here on purpose — this runs from a live search box, and
+ * an AI call per query would be slower and cost real money for something
+ * a direct alias match already covers well for a catalog this size.
+ * Layering Haiku-based query normalisation on top (the roadmap's fuller
+ * version) is a real next step, not this one — it needs its own
+ * debounce/cost design so it doesn't fire on every keystroke.
+ *
+ * Bounded to the MAX_SHOPS_TO_SCAN nearest shops — fine for a hyperlocal
+ * catalog's current size, not a substitute for a real search index
+ * (Step 5.3) if the shop count grows much larger.
+ */
+export async function searchNearbyShopsByProduct(
+  origin: GeoPoint,
+  radiusInM: number,
+  query: string
+): Promise<ProductMatchResult[]> {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+
+  const nearby = (await getNearbyShops(origin, radiusInM)).slice(0, MAX_SHOPS_TO_SCAN);
+
+  const matches = await Promise.all(
+    nearby.map(async (result) => {
+      const snap = await adminDb()
+        .collection("shops")
+        .doc(result.shop.id)
+        .collection("products")
+        .where("inStock", "==", true)
+        .limit(MAX_PRODUCTS_PER_SHOP)
+        .get();
+
+      const hit = snap.docs.find((d) => {
+        const p = d.data();
+        const nameHit = typeof p.name === "string" && p.name.toLowerCase().includes(q);
+        const aliasHit =
+          Array.isArray(p.aliases) &&
+          p.aliases.some((a: unknown) => typeof a === "string" && a.toLowerCase().includes(q));
+        return nameHit || aliasHit;
+      });
+      if (!hit) return null;
+      return { ...result, matchedProductName: hit.data().name as string };
+    })
+  );
+
+  return matches.filter((m): m is ProductMatchResult => m !== null);
+}
+
 export async function saveMyLocation(
   point: GeoPoint,
   source: "gps" | "manual",

@@ -128,6 +128,22 @@ export const HELPERS: Record<AiHelperName, HelperDef> = {
     }),
     outputShapeHint: '{"approvalId": string, "items": [...], "summary": string}',
   },
+
+  orderHelp: {
+    name: "orderHelp",
+    role: "buyer",
+    model: AI_MODELS.haiku,
+    maxToolSteps: 2,
+    systemPrompt:
+      "You answer a CloseBy buyer's question about ONE of their own orders — " +
+      `status, items, or how it's progressing. ${DATA_RULE} Use orderStatus to ` +
+      "check the real, current order — never guess or assume a status. You " +
+      "cannot see any other order, cancel or change anything, or answer " +
+      "questions about other buyers/shops — if asked, say you can only help " +
+      'with this one order. Answer ONLY with JSON: {"answer": string}.',
+    outputSchema: z.object({ answer: z.string().max(500) }),
+    outputShapeHint: '{"answer": string}',
+  },
 };
 
 /** Which of the narrow tool list each helper is allowed to call (Step 2.7). */
@@ -136,4 +152,5 @@ export const HELPER_TOOLS: Record<AiHelperName, string[]> = {
   buyerCartDraft: ["nearbyShops", "searchProducts", "draftCart"],
   orderAdvice: ["orderStatus", "shopStock", "draftOrderAdvice"],
   stockDraft: ["draftStockList"],
+  orderHelp: ["orderStatus"],
 };

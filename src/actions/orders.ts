@@ -237,6 +237,69 @@ export async function getOrder(orderId: string): Promise<OrderDoc | null> {
   return { id: doc.id, ...(data as Omit<OrderDoc, "id">) };
 }
 
+export interface ReorderResult {
+  shopId: string;
+  shopName: string;
+  items: { productId: string; name: string; unit: string; price: number; qty: number }[];
+  unavailable: { productId: string; name: string }[];
+}
+
+/**
+ * Step 4.3 ("reorder my usual" — the roadmap's own note: "no AI needed for
+ * the base version"). Re-checks every line against the shop's CURRENT
+ * status and CURRENT product stock/price — never trusts the frozen prices
+ * on the old order doc — and returns cart-ready items instead of placing
+ * an order directly; the buyer still reviews and confirms through the
+ * normal cart -> placeOrder flow, which re-checks everything again anyway.
+ */
+export async function reorderFromOrder(orderId: string): Promise<ActionResult<ReorderResult>> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Not signed in" };
+
+  const limited = rateLimit("reorder", userId);
+  if (!limited.ok) return { ok: false, error: rateLimitMessage(limited.retryAfterSec) };
+
+  const orderDoc = await adminDb().collection("orders").doc(orderId).get();
+  if (!orderDoc.exists) return { ok: false, error: "Order not found" };
+  const order = orderDoc.data() as OrderDoc;
+  if (order.buyerId !== userId) return { ok: false, error: "Not your order" };
+
+  const shopDoc = await adminDb().collection("shops").doc(order.shopId).get();
+  const shopName = shopDoc.data()?.name as string | undefined;
+  if (!shopDoc.exists || shopDoc.data()?.status !== "live" || !shopName) {
+    return { ok: false, error: "This shop isn't available right now" };
+  }
+
+  const items: ReorderResult["items"] = [];
+  const unavailable: ReorderResult["unavailable"] = [];
+  for (const line of order.items) {
+    const pDoc = await adminDb()
+      .collection("shops")
+      .doc(order.shopId)
+      .collection("products")
+      .doc(line.productId)
+      .get();
+    const p = pDoc.data();
+    if (!pDoc.exists || !p || !p.inStock || p.stock < 1) {
+      unavailable.push({ productId: line.productId, name: line.name });
+      continue;
+    }
+    items.push({
+      productId: line.productId,
+      name: p.name,
+      unit: p.unit,
+      price: p.price, // current price, not the order's frozen price
+      qty: Math.min(line.qty, p.stock),
+    });
+  }
+
+  if (items.length === 0) {
+    return { ok: false, error: "None of these items are available right now" };
+  }
+
+  return { ok: true, data: { shopId: order.shopId, shopName, items, unavailable } };
+}
+
 const orderStatusSchema = z.enum([
   "PLACED",
   "ACCEPTED",

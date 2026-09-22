@@ -2,11 +2,14 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { listMyOrders } from "@/actions/orders";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { Loader2, RotateCcw } from "lucide-react";
+import { listMyOrders, reorderFromOrder } from "@/actions/orders";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { Button } from "@/components/ui/button";
 import { formatPaise } from "@/lib/money";
+import { useCartStore } from "@/lib/store/cart";
 import type { OrderDoc } from "@/types";
 
 /** Renders the first page (from the server) and loads more on demand —
@@ -21,6 +24,9 @@ export function OrdersList({
   const [orders, setOrders] = useState(initialOrders);
   const [cursor, setCursor] = useState(initialCursor);
   const [pending, startTransition] = useTransition();
+  const [reorderingId, setReorderingId] = useState<string | null>(null);
+  const router = useRouter();
+  const applyDraftItems = useCartStore((s) => s.applyDraftItems);
 
   function loadMore() {
     startTransition(async () => {
@@ -31,15 +37,30 @@ export function OrdersList({
     });
   }
 
+  async function reorder(orderId: string) {
+    setReorderingId(orderId);
+    const result = await reorderFromOrder(orderId);
+    setReorderingId(null);
+    if (!result.ok || !result.data) {
+      toast.error(result.error ?? "Could not reorder — try browsing the shop instead");
+      return;
+    }
+    const { shopId, shopName, items, unavailable } = result.data;
+    applyDraftItems(shopId, shopName, items);
+    if (unavailable.length > 0) {
+      toast.warning(
+        `${unavailable.length} item(s) no longer available: ${unavailable.map((u) => u.name).slice(0, 3).join(", ")}`,
+      );
+    }
+    toast.success(`Added ${items.length} item(s) to your cart`);
+    router.push("/cart");
+  }
+
   return (
     <div className="flex flex-col gap-2">
       {orders.map((order) => (
-        <Link
-          key={order.id}
-          href={`/orders/${order.id}`}
-          className="flex items-center justify-between gap-3 rounded-xl border p-3 hover:bg-accent/50"
-        >
-          <div className="min-w-0">
+        <div key={order.id} className="flex items-center gap-2 rounded-xl border p-3 hover:bg-accent/50">
+          <Link href={`/orders/${order.id}`} className="min-w-0 flex-1">
             <p className="truncate font-medium">{order.shopName}</p>
             <p className="text-muted-foreground text-xs">
               #{order.id.slice(0, 8).toUpperCase()} ·{" "}
@@ -50,9 +71,22 @@ export function OrdersList({
               · {order.items.length} item{order.items.length > 1 ? "s" : ""}{" "}
               · {formatPaise(order.itemTotal)}
             </p>
-          </div>
+          </Link>
           <OrderStatusBadge status={order.status} />
-        </Link>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={reorderingId === order.id}
+            onClick={() => reorder(order.id)}
+            aria-label="Reorder"
+          >
+            {reorderingId === order.id ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <RotateCcw className="size-3.5" />
+            )}
+          </Button>
+        </div>
       ))}
       {cursor !== null && (
         <Button

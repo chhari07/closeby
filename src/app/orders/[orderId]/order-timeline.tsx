@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { transitionOrder } from "@/actions/orders";
 import { isTerminal } from "@/lib/orders/transitions";
+import { OrderHelpChat } from "./order-help-chat";
 import type { OrderDoc, OrderStatus } from "@/types";
 
 const STEPS: OrderStatus[] = [
@@ -147,6 +148,8 @@ export function OrderTimeline({
       )}
 
       <OrderBill order={order} showBuyer={!isBuyer} />
+
+      {isBuyer && <OrderHelpChat orderId={orderId} />}
 
       {isBuyer && order.status === "PLACED" && (
         <Button

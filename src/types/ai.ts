@@ -2,7 +2,7 @@
 // docs/closeby-ai-roadmap-steps.txt §2.4. Kept separate from src/types/index.ts
 // since these are AI-plumbing types, not storefront/order domain types.
 
-export type AiHelperName = "hello" | "buyerCartDraft" | "orderAdvice" | "stockDraft";
+export type AiHelperName = "hello" | "buyerCartDraft" | "orderAdvice" | "stockDraft" | "orderHelp";
 
 export type AiRunResult = "ok" | "error" | "refused" | "invalid_output";
 
