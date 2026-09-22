@@ -9,6 +9,7 @@ import { LocationChip } from "./location-chip";
 import { LocationPickerDialog } from "./location-picker-dialog";
 import { ShopCard } from "./shop-card";
 import { ShopListSkeleton } from "./shop-list-skeleton";
+import { AiCartDialog } from "./ai-cart-dialog";
 import { Button } from "@/components/ui/button";
 import { ANY_DISTANCE, RADIUS_OPTIONS, radiusLabel } from "@/lib/geo/radius";
 import type { Locality, NearbyShopResult } from "@/types";
@@ -109,6 +110,8 @@ export function ShopsExplorer({
         onPickGps={handleGps}
         onPickLocality={handleLocality}
       />
+
+      {lat && lng && <AiCartDialog lat={lat} lng={lng} />}
     </div>
   );
 }

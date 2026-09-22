@@ -21,6 +21,14 @@ interface CartState {
   items: CartItem[];
   pendingSwitch: PendingSwitch | null;
   addItem: (shopId: string, shopName: string, item: CartItem) => void;
+  /** Applies several items at once (the AI cart draft) — merges into the
+   *  current cart if it's the same shop, otherwise replaces it outright.
+   *  The caller (AiCartDialog) is responsible for warning the buyer first
+   *  when that would discard a different shop's items; the single-item
+   *  pendingSwitch flow above is for the manual "add to cart" button and
+   *  doesn't fit a multi-item bulk apply (each item would stomp the last
+   *  pending one). */
+  applyDraftItems: (shopId: string, shopName: string, items: CartItem[]) => void;
   confirmSwitch: () => void;
   cancelSwitch: () => void;
   updateQty: (productId: string, qty: number) => void;
@@ -54,6 +62,21 @@ export const useCartStore = create<CartState>()(
                 i.productId === item.productId ? { ...i, qty: i.qty + item.qty } : i
               )
             : [...s.items, item];
+          return { shopId, shopName, items };
+        });
+      },
+
+      applyDraftItems: (shopId, shopName, items) => {
+        set((s) => {
+          if (s.shopId === shopId) {
+            const merged = [...s.items];
+            for (const item of items) {
+              const idx = merged.findIndex((i) => i.productId === item.productId);
+              if (idx >= 0) merged[idx] = { ...merged[idx]!, qty: merged[idx]!.qty + item.qty };
+              else merged.push(item);
+            }
+            return { items: merged };
+          }
           return { shopId, shopName, items };
         });
       },

@@ -56,7 +56,8 @@ export function draftCartTool(ctx: ToolContext) {
     }),
     run: async ({ shopId, items }) => {
       const shopDoc = await adminDb().collection("shops").doc(shopId).get();
-      if (!shopDoc.exists || shopDoc.data()?.status !== "live") {
+      const shopName = shopDoc.data()?.name as string | undefined;
+      if (!shopDoc.exists || shopDoc.data()?.status !== "live" || !shopName) {
         return JSON.stringify({ approvalId: null, itemCount: 0, unavailable: items.map((i) => i.productId) });
       }
 
@@ -85,7 +86,11 @@ export function draftCartTool(ctx: ToolContext) {
 
       if (verified.length === 0) return JSON.stringify({ approvalId: null, itemCount: 0, unavailable });
 
-      const approvalId = await createApproval(ctx.userId, shopId, "draftCart", { shopId, items: verified });
+      const approvalId = await createApproval(ctx.userId, shopId, "draftCart", {
+        shopId,
+        shopName,
+        items: verified,
+      });
       return JSON.stringify({ approvalId, itemCount: verified.length, unavailable });
     },
   });
