@@ -14,6 +14,15 @@ export function aiClient(): Anthropic {
       "Missing ANTHROPIC_API_KEY. Set it in .env.local — see .env.local.example.",
     );
   }
-  _client = new Anthropic({ apiKey });
+
+  // An org-wide (unscoped) API key needs this header on every request or
+  // the API rejects it with "not scoped to a workspace" — a workspace-scoped
+  // key doesn't need it. Get the id from console.anthropic.com under the
+  // workspace's settings.
+  const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID;
+  _client = new Anthropic({
+    apiKey,
+    ...(workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {}),
+  });
   return _client;
 }
