@@ -39,6 +39,19 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-primary-ink: var(--primary-ink);
+  --color-brand-lime: var(--brand-lime);
+  --color-brand-green: var(--brand-green);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-peach: var(--brand-peach);
+  --color-brand-teal: var(--brand-teal);
+  --color-panel: var(--panel);
+  --color-forest: var(--forest);
+  --color-cream: var(--cream);
+  --font-display: var(--font-display);
   --color-status-progress: var(--status-progress);
   --color-status-ready: var(--status-ready);
   --color-status-stopped: var(--status-stopped);
@@ -52,78 +65,103 @@
 }
 
 :root {
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.62 0.19 41);
-  --primary-foreground: oklch(0.99 0.01 41);
-  --secondary: oklch(0.97 0.01 41);
-  --secondary-foreground: oklch(0.3 0.05 41);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.48 0 0);
-  --accent: oklch(0.95 0.03 41);
-  --accent-foreground: oklch(0.3 0.05 41);
+  /* CloseBy theme: forest-green ink, warm cream paper, electric-lime actions,
+     block-print accents (orange, river blue, sky, sun yellow, peach). */
+  --forest: oklch(0.273 0.047 158);
+  --cream: oklch(0.955 0.016 85);
+  --background: var(--cream);
+  --foreground: var(--forest);
+  --card: oklch(0.985 0.009 85);
+  --card-foreground: var(--forest);
+  --popover: oklch(0.985 0.009 85);
+  --popover-foreground: var(--forest);
+  --primary: oklch(0.83 0.25 145);
+  --primary-foreground: var(--forest);
+  --primary-ink: oklch(0.45 0.15 148);
+  --secondary: oklch(0.925 0.02 85);
+  --secondary-foreground: var(--forest);
+  --muted: oklch(0.935 0.017 85);
+  --muted-foreground: oklch(0.45 0.03 155);
+  --accent: oklch(0.92 0.09 145);
+  --accent-foreground: var(--forest);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0 0);
-  --input: oklch(0.9 0 0);
-  --ring: oklch(0.62 0.19 41);
-  --status-progress: oklch(0.75 0.16 75);
-  --status-ready: oklch(0.65 0.17 145);
+  --border: oklch(0.86 0.025 85);
+  --input: oklch(0.86 0.025 85);
+  --ring: oklch(0.62 0.22 145);
+  --brand-lime: oklch(0.83 0.25 145);
+  --brand-green: oklch(0.45 0.13 148);
+  --brand-orange: oklch(0.62 0.19 40);
+  --brand-yellow: oklch(0.88 0.16 95);
+  --brand-blue: oklch(0.52 0.17 258);
+  --brand-sky: oklch(0.87 0.06 215);
+  --brand-peach: oklch(0.86 0.08 45);
+  --brand-teal: oklch(0.5 0.1 190);
+  /* Auth brand panel background: forest for buyers, deep teal for shop owners. */
+  --panel: var(--forest);
+  --status-progress: oklch(0.78 0.16 75);
+  --status-ready: oklch(0.58 0.16 148);
   --status-stopped: oklch(0.6 0.22 27);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --chart-1: var(--brand-lime);
+  --chart-2: var(--brand-green);
+  --chart-3: var(--brand-orange);
+  --chart-4: var(--brand-blue);
+  --chart-5: var(--brand-yellow);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.985 0.009 85);
+  --sidebar-foreground: var(--forest);
+  --sidebar-primary: oklch(0.83 0.25 145);
+  --sidebar-primary-foreground: var(--forest);
+  --sidebar-accent: oklch(0.92 0.09 145);
+  --sidebar-accent-foreground: var(--forest);
+  --sidebar-border: oklch(0.86 0.025 85);
+  --sidebar-ring: oklch(0.62 0.22 145);
+}
+
+/* Shop-owner workspace: cooler teal palette so the seller side reads as a
+   different space from the warm orange buyer side. Set on <html> by RoleTheme. */
+[data-role="shop_owner"] {
+  --primary: oklch(0.5 0.1 190);
+  --primary-foreground: oklch(0.99 0.01 190);
+  --secondary: oklch(0.97 0.012 190);
+  --secondary-foreground: oklch(0.3 0.06 190);
+  --accent: oklch(0.95 0.03 190);
+  --accent-foreground: oklch(0.3 0.06 190);
+  --ring: oklch(0.5 0.1 190);
+  --panel: oklch(0.3 0.06 190);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.2 0.04 155);
+  --foreground: oklch(0.955 0.016 85);
+  --card: oklch(0.25 0.045 155);
+  --card-foreground: oklch(0.955 0.016 85);
+  --popover: oklch(0.25 0.045 155);
+  --popover-foreground: oklch(0.955 0.016 85);
+  --primary: oklch(0.83 0.25 145);
+  --primary-foreground: oklch(0.2 0.04 155);
+  --primary-ink: oklch(0.83 0.25 145);
+  --secondary: oklch(0.3 0.045 155);
+  --secondary-foreground: oklch(0.955 0.016 85);
+  --muted: oklch(0.28 0.04 155);
+  --muted-foreground: oklch(0.75 0.03 130);
+  --accent: oklch(0.32 0.07 150);
+  --accent-foreground: oklch(0.955 0.016 85);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
+  --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
-  --status-progress: oklch(0.75 0.16 75);
-  --status-ready: oklch(0.65 0.17 145);
-  --status-stopped: oklch(0.6 0.22 27);
+  --ring: oklch(0.83 0.25 145);
+  --brand-green: oklch(0.65 0.17 148);
+  --brand-orange: oklch(0.72 0.17 45);
+  --brand-blue: oklch(0.65 0.17 255);
+  --sidebar: oklch(0.25 0.045 155);
+  --sidebar-foreground: oklch(0.955 0.016 85);
+  --sidebar-primary: oklch(0.83 0.25 145);
+  --sidebar-primary-foreground: oklch(0.2 0.04 155);
+  --sidebar-accent: oklch(0.32 0.07 150);
+  --sidebar-accent-foreground: oklch(0.955 0.016 85);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.83 0.25 145);
+  --status-ready: oklch(0.7 0.17 148);
 }
 
 @layer base {
@@ -133,7 +171,114 @@
   body {
     @apply bg-background text-foreground;
   }
+  h1,
+  h2 {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    text-transform: uppercase;
+    letter-spacing: -0.005em;
+  }
   html {
     @apply font-sans;
+  }
+}
+
+/* Block-print effects */
+@utility bg-multicolor {
+  background-image: linear-gradient(
+    100deg,
+    var(--brand-lime),
+    var(--brand-green),
+    var(--brand-blue),
+    var(--brand-orange)
+  );
+}
+
+@utility bg-multicolor-animated {
+  background-image: linear-gradient(
+    100deg,
+    var(--brand-lime),
+    var(--brand-green),
+    var(--brand-blue),
+    var(--brand-orange),
+    var(--brand-lime)
+  );
+  background-size: 300% 100%;
+  animation: multicolor-shift 12s linear infinite;
+}
+
+@utility text-multicolor {
+  background-image: linear-gradient(
+    90deg,
+    var(--brand-lime),
+    var(--brand-sky),
+    var(--brand-peach),
+    var(--brand-lime)
+  );
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: multicolor-shift 12s linear infinite;
+}
+
+/* Striped strip: lime, orange, blue, yellow */
+@utility awning {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--brand-lime) 0 1.25rem,
+    var(--brand-orange) 1.25rem 2.5rem,
+    var(--brand-blue) 2.5rem 3.75rem,
+    var(--brand-yellow) 3.75rem 5rem
+  );
+}
+
+/* Round sticker badge, like the patches in the reference */
+@utility badge-sticker {
+  border-radius: 9999px;
+  border: 4px solid var(--brand-orange);
+  background: var(--forest);
+  color: var(--cream);
+}
+
+@utility border-multicolor {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(100deg, var(--brand-lime), var(--brand-blue), var(--brand-orange)) border-box;
+}
+
+@utility glow-multicolor {
+  box-shadow:
+    0 0 24px -6px color-mix(in oklch, var(--brand-lime) 55%, transparent),
+    0 0 40px -10px color-mix(in oklch, var(--brand-blue) 40%, transparent);
+}
+
+@keyframes multicolor-shift {
+  to {
+    background-position: 300% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-multicolor,
+  .bg-multicolor-animated {
+    animation: none;
+  }
+}
+
+/* Print only the order bill (Print / Save as PDF on an order). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-bill,
+  .print-bill * {
+    visibility: visible;
+  }
+  .print-bill {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    border: none;
   }
 }

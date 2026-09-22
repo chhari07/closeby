@@ -6,7 +6,7 @@ import {
   type RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
 import { readFileSync } from "node:fs";
-import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
 
 let testEnv: RulesTestEnvironment;
 
@@ -58,6 +58,19 @@ beforeEach(async () => {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
+    await setDoc(doc(db, "users", BUYER_UID), {
+      role: "buyer",
+      name: "Test Buyer",
+      phone: "9876543210",
+    });
+    await setDoc(doc(db, "users", OWNER_A_UID), { role: "owner", name: "Owner A" });
+    await setDoc(doc(db, "shops", "live-shop-a", "products", "p1"), {
+      name: "Milk",
+      unit: "1 L",
+      price: 5000,
+      stock: 10,
+      inStock: true,
+    });
     await setDoc(doc(db, "orders", "order-1"), {
       buyerId: BUYER_UID,
       shopId: "live-shop-a",
@@ -97,9 +110,63 @@ describe("shops", () => {
     await assertFails(updateDoc(doc(ownerBDb, "shops", "live-shop-a"), { name: "Hijacked" }));
   });
 
-  it("an owner can edit their own shop", async () => {
+  it("an owner cannot edit their own shop directly (server actions only)", async () => {
     const ownerADb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
-    await assertSucceeds(updateDoc(doc(ownerADb, "shops", "live-shop-a"), { name: "Renamed" }));
+    await assertFails(updateDoc(doc(ownerADb, "shops", "live-shop-a"), { name: "Renamed" }));
+  });
+
+  it("an owner cannot set their draft shop live directly", async () => {
+    const ownerADb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(updateDoc(doc(ownerADb, "shops", "draft-shop"), { status: "live" }));
+  });
+
+  it("a user cannot create a shop that is already live", async () => {
+    const ownerBDb = testEnv.authenticatedContext(OWNER_B_UID).firestore();
+    await assertFails(
+      setDoc(doc(ownerBDb, "shops", "new-shop"), { ownerId: OWNER_B_UID, status: "live", isOpen: true })
+    );
+  });
+
+  it("an owner cannot delete their shop", async () => {
+    const ownerADb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(deleteDoc(doc(ownerADb, "shops", "live-shop-a")));
+  });
+});
+
+describe("users", () => {
+  it("a user can read their own profile", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "users", BUYER_UID)));
+  });
+
+  it("a user cannot read another user's profile", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(getDoc(doc(buyerDb, "users", OWNER_A_UID)));
+  });
+
+  it("a user cannot change their own role", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(updateDoc(doc(buyerDb, "users", BUYER_UID), { role: "owner" }));
+  });
+});
+
+describe("products", () => {
+  it("anyone signed in can read a product of a live shop", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "shops", "live-shop-a", "products", "p1")));
+  });
+
+  it("a non-owner cannot write a product", async () => {
+    const ownerBDb = testEnv.authenticatedContext(OWNER_B_UID).firestore();
+    await assertFails(updateDoc(doc(ownerBDb, "shops", "live-shop-a", "products", "p1"), { price: 1 }));
+    await assertFails(
+      setDoc(doc(ownerBDb, "shops", "live-shop-a", "products", "p2"), { name: "Fake", price: 1 })
+    );
+  });
+
+  it("even the shop owner cannot write a product directly (server actions only)", async () => {
+    const ownerADb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(updateDoc(doc(ownerADb, "shops", "live-shop-a", "products", "p1"), { stock: 9999 }));
   });
 });
 
@@ -118,18 +185,44 @@ describe("orders", () => {
     await assertFails(updateDoc(doc(ownerDb, "orders", "order-1"), { itemTotal: 1 }));
   });
 
-  it("the shop owner can advance status on their own order", async () => {
-    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
-    await assertSucceeds(
-      updateDoc(doc(ownerDb, "orders", "order-1"), {
-        status: "ACCEPTED",
-        updatedAt: Date.now(),
-        timeline: [
-          { status: "PLACED", at: Date.now(), by: "buyer" },
-          { status: "ACCEPTED", at: Date.now(), by: "shop" },
-        ],
+  it("a buyer cannot create an order directly", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(
+      setDoc(doc(buyerDb, "orders", "order-fake"), {
+        buyerId: BUYER_UID,
+        shopId: "live-shop-a",
+        items: [{ productId: "p1", name: "Milk", unit: "1 L", price: 1, qty: 1 }],
+        itemTotal: 1,
+        status: "PLACED",
       })
     );
+  });
+
+  it("a buyer cannot change the order status directly", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(updateDoc(doc(buyerDb, "orders", "order-1"), { status: "DELIVERED" }));
+  });
+
+  it("the shop owner cannot change the order status directly (server actions only)", async () => {
+    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(updateDoc(doc(ownerDb, "orders", "order-1"), { status: "ACCEPTED" }));
+  });
+
+  it("no one can delete an order", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(deleteDoc(doc(buyerDb, "orders", "order-1")));
+  });
+
+  it("the buyer and the shop owner can read the order", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "orders", "order-1")));
+    await assertSucceeds(getDoc(doc(ownerDb, "orders", "order-1")));
+  });
+
+  it("a different buyer cannot read the order", async () => {
+    const otherBuyerDb = testEnv.authenticatedContext("buyer-2").firestore();
+    await assertFails(getDoc(doc(otherBuyerDb, "orders", "order-1")));
   });
 
   it("an unrelated user cannot read the order", async () => {

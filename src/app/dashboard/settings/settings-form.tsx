@@ -17,11 +17,15 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export function SettingsForm({ shop }: { shop: ShopDoc }) {
   const [open, setOpenTime] = useState(shop.hours?.open ?? "09:00");
   const [close, setCloseTime] = useState(shop.hours?.close ?? "21:00");
-  const [days, setDays] = useState<number[]>(shop.hours?.days ?? [0, 1, 2, 3, 4, 5, 6]);
+  const [days, setDays] = useState<number[]>(
+    shop.hours?.days ?? [0, 1, 2, 3, 4, 5, 6],
+  );
   const [submitting, setSubmitting] = useState(false);
 
   function toggleDay(d: number) {
-    setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
+    setDays((prev) =>
+      prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort(),
+    );
   }
 
   async function handleSave() {
@@ -56,11 +60,21 @@ export function SettingsForm({ shop }: { shop: ShopDoc }) {
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="open">Opens at</Label>
-            <Input id="open" type="time" value={open} onChange={(e) => setOpenTime(e.target.value)} />
+            <Input
+              id="open"
+              type="time"
+              value={open}
+              onChange={(e) => setOpenTime(e.target.value)}
+            />
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="close">Closes at</Label>
-            <Input id="close" type="time" value={close} onChange={(e) => setCloseTime(e.target.value)} />
+            <Input
+              id="close"
+              type="time"
+              value={close}
+              onChange={(e) => setCloseTime(e.target.value)}
+            />
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -70,17 +84,26 @@ export function SettingsForm({ shop }: { shop: ShopDoc }) {
               <label
                 key={d}
                 className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 ${
-                  days.includes(i) ? "border-primary bg-accent" : "border-border"
+                  days.includes(i)
+                    ? "border-primary bg-accent"
+                    : "border-border"
                 }`}
               >
-                <Checkbox checked={days.includes(i)} onCheckedChange={() => toggleDay(i)} />
+                <Checkbox
+                  checked={days.includes(i)}
+                  onCheckedChange={() => toggleDay(i)}
+                />
                 <span className="text-sm">{d}</span>
               </label>
             ))}
           </div>
         </div>
         <Button className="min-h-11" disabled={submitting} onClick={handleSave}>
-          {submitting ? <Loader2 className="size-4 animate-spin" /> : "Save hours"}
+          {submitting ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            "Save hours"
+          )}
         </Button>
       </Card>
     </div>

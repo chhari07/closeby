@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import { MapPin, LogOut } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/lib/store/cart";
 import { ROLE_NAV_ITEMS } from "@/lib/nav/role-nav-items";
@@ -21,6 +23,15 @@ export function NavbarClient({
 }) {
   const pathname = usePathname();
   const { signOut } = useClerk();
+  const [scrolled, setScrolled] = useState(false);
+
+  // Solid at the top of the page; translucent + blurred once the user scrolls.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 10);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.qty, 0));
 
   const homeHref = !signedIn ? "/" : role === "shop_owner" ? "/dashboard" : role ? "/shops" : "/";
@@ -36,20 +47,26 @@ export function NavbarClient({
 
   return (
     <>
-      <header className="bg-background sticky top-0 z-40 border-b">
+      <header
+        className={cn(
+          "sticky top-0 z-40 border-b transition-[background-color,backdrop-filter,box-shadow] duration-300",
+          scrolled
+            ? "bg-forest/60 border-white/10 shadow-lg shadow-black/10 backdrop-blur-md supports-[backdrop-filter]:bg-forest/55"
+            : "bg-forest border-white/10"
+        )}
+      >
         <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-          <Link href={homeHref} className="flex items-center gap-1.5 font-bold">
-            <MapPin className="text-primary size-5" />
-            CloseBy
+          <Link href={homeHref} aria-label="CloseBy home" className="flex items-center">
+            <Logo tone="light" className="h-9" priority />
           </Link>
 
           {!signedIn && (
             <div className="flex items-center gap-2">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/sign-in">Sign in</Link>
+              <Button asChild variant="ghost" size="sm" className="text-cream hover:bg-white/10 hover:text-cream">
+                <Link href="/get-started?mode=signin">Log in</Link>
               </Button>
               <Button asChild size="sm">
-                <Link href="/sign-up">Sign up</Link>
+                <Link href="/get-started">Sign up</Link>
               </Button>
             </div>
           )}
@@ -67,7 +84,10 @@ export function NavbarClient({
                         asChild
                         variant="ghost"
                         size="sm"
-                        className={cn("relative gap-1.5", active && "text-primary bg-accent")}
+                        className={cn(
+                          "text-cream/80 hover:text-cream relative gap-1.5 hover:bg-white/10",
+                          active && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                        )}
                       >
                         <Link href={item.href}>
                           <Icon className="size-4" />
@@ -83,13 +103,13 @@ export function NavbarClient({
                   })}
                 </nav>
               )}
-              {name && <span className="text-muted-foreground hidden text-sm sm:inline">{name}</span>}
+              {name && <span className="text-cream/70 hidden text-sm sm:inline">{name}</span>}
               <Button
                 variant="ghost"
                 size="icon"
                 aria-label="Logout"
                 onClick={handleLogout}
-                className="text-muted-foreground"
+                className="text-cream/70 hover:bg-white/10 hover:text-cream"
               >
                 <LogOut className="size-4" />
               </Button>
@@ -109,7 +129,7 @@ export function NavbarClient({
                 href={item.href}
                 className={cn(
                   "relative flex min-h-14 flex-1 flex-col items-center justify-center gap-0.5 text-xs",
-                  active ? "text-primary font-medium" : "text-muted-foreground"
+                  active ? "text-primary-ink font-medium" : "text-muted-foreground"
                 )}
               >
                 <Icon className="size-5" />

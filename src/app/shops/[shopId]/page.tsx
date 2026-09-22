@@ -41,7 +41,7 @@ export default async function ShopPage({ params }: { params: Promise<{ shopId: s
   const typeLabel = SHOP_TYPES.find((t) => t.value === shop.type)?.label ?? shop.type;
 
   return (
-    <div className="mx-auto max-w-2xl pb-24">
+    <div className="mx-auto max-w-6xl pb-24">
       <header className="border-b p-4">
         <BackButton />
         <div className="mt-2 flex items-start justify-between gap-2">

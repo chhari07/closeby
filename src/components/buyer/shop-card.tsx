@@ -3,6 +3,15 @@ import { Store, Pill, Pencil, Croissant, Cpu, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { NearbyShopResult, ShopType } from "@/types";
 
+const TINTS: Record<ShopType, string> = {
+  kirana: "bg-orange-100 text-orange-700",
+  pharmacy: "bg-rose-100 text-rose-700",
+  stationery: "bg-indigo-100 text-indigo-700",
+  bakery: "bg-amber-100 text-amber-700",
+  electronics: "bg-sky-100 text-sky-700",
+  other: "bg-emerald-100 text-emerald-700",
+};
+
 const ICONS: Record<ShopType, React.ComponentType<{ className?: string }>> = {
   kirana: Store,
   pharmacy: Pill,
@@ -22,9 +31,9 @@ export function ShopCard({ shop, distanceInM }: NearbyShopResult) {
   return (
     <Link
       href={`/shops/${shop.id}`}
-      className="flex items-center gap-3 rounded-xl border p-3 transition-colors hover:bg-accent/50"
+      className="bg-card flex items-center gap-4 rounded-2xl border p-4 shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div className="bg-accent flex size-12 shrink-0 items-center justify-center rounded-lg">
+      <div className={`flex size-14 shrink-0 items-center justify-center rounded-xl ${TINTS[shop.type] ?? TINTS.other}`}>
         <Icon className="size-6" />
       </div>
       <div className="min-w-0 flex-1">

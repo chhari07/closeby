@@ -18,9 +18,29 @@ const timeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Use 24-hour HH:mm format");
 
+const shopNameSchema = z.string().trim().min(2, "Shop name is too short").max(80);
+
+/** Name + phone only — used to seed the draft shop at sign-up. */
+export const shopSeedSchema = z.object({
+  name: shopNameSchema,
+  phone: indianPhoneSchema,
+});
+
+/** Working hours as edited from shop settings (same rules as the setup step). */
+export const shopHoursSchema = z
+  .object({
+    open: timeSchema,
+    close: timeSchema,
+    days: z.array(z.number().int().min(0).max(6)).min(1, "Pick at least one working day"),
+  })
+  .refine((v) => v.open !== v.close, {
+    message: "Opening and closing time can't be the same",
+    path: ["close"],
+  });
+
 export const shopDetailsStepSchema = z
   .object({
-    name: z.string().trim().min(2, "Shop name is too short").max(80),
+    name: shopNameSchema,
     phone: indianPhoneSchema,
     open: timeSchema,
     close: timeSchema,

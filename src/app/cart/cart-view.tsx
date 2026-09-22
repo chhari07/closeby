@@ -57,6 +57,8 @@ export function CartView() {
                 size="icon"
                 variant="outline"
                 className="size-8"
+                aria-label="Increase quantity"
+                disabled={item.qty >= 50}
                 onClick={() => updateQty(item.productId, item.qty + 1)}
               >
                 <Plus className="size-3.5" />

@@ -5,7 +5,9 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/get-started",
   "/api/webhooks(.*)",
+  "/inventory-samples(.*)",
 ]);
 
 // Role-based gating (onboarding-complete, buyer vs shop-owner, live-shop

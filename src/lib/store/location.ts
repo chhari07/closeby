@@ -26,7 +26,7 @@ export const useLocationStore = create<LocationState>()(
       source: null,
       localityId: null,
       localityName: null,
-      radiusM: 3000,
+      radiusM: 0, // 0 = any distance (no limit)
       setLocation: ({ lat, lng, source, localityId, localityName }) =>
         set({
           lat,
@@ -37,6 +37,11 @@ export const useLocationStore = create<LocationState>()(
         }),
       setRadius: (radiusM) => set({ radiusM }),
     }),
-    { name: "closeby-location" }
+    {
+      name: "closeby-location",
+      version: 1,
+      // v0 defaulted to a 3 km cap; move existing users to "no limit".
+      migrate: (state) => ({ ...(state as LocationState), radiusM: 0 }),
+    }
   )
 );

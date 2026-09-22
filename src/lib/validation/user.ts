@@ -21,3 +21,22 @@ export const updateProfileSchema = z.object({
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
+
+// Sign-up form: the account details collected before the email OTP is sent.
+// Shop owners also give their shop's name so the draft shop can be seeded.
+export const signUpFormSchema = z
+  .object({
+    role: roleSchema,
+    name: z.string().trim().min(2, "Name is too short").max(80),
+    email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+    phone: indianPhoneSchema,
+    shopName: z.string().trim().max(80).optional(),
+  })
+  .refine((v) => v.role !== "shop_owner" || (v.shopName && v.shopName.length >= 2), {
+    message: "Enter your shop's name",
+    path: ["shopName"],
+  });
+
+export type SignUpFormInput = z.infer<typeof signUpFormSchema>;
+
+export const otpCodeSchema = z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code");

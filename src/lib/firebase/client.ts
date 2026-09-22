@@ -14,6 +14,9 @@ const firebaseConfig: FirebaseOptions = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+/** False until the NEXT_PUBLIC_FIREBASE_* keys are set in .env.local. */
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+
 // Lazy on purpose: this module is pulled in by client components that also
 // render on the server during prerendering, where real Firebase env vars
 // may not be configured yet (e.g. local dev before keys are added, or CI).

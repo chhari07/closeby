@@ -21,16 +21,24 @@ export function OpenToggle() {
       return;
     }
     if (!nextOpen) {
-      toast.warning("Your shop is now hidden from buyers. Existing orders still need to be completed.");
+      toast.warning(
+        "Your shop is now hidden from buyers. Existing orders still need to be completed.",
+      );
     }
   }
 
   return (
     <div className="flex items-center gap-2">
-      <span className={`text-sm font-medium ${shop.isOpen ? "text-status-ready" : "text-status-stopped"}`}>
+      <span
+        className={`text-sm font-medium ${shop.isOpen ? "text-status-ready" : "text-status-stopped"}`}
+      >
         {shop.isOpen ? "Open" : "Closed"}
       </span>
-      <Switch checked={shop.isOpen} disabled={pending} onCheckedChange={handleChange} />
+      <Switch
+        checked={shop.isOpen}
+        disabled={pending}
+        onCheckedChange={handleChange}
+      />
     </div>
   );
 }

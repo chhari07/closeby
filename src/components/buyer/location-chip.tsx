@@ -44,7 +44,7 @@ export function LocationChip({ localities }: { localities: Locality[] }) {
         <span className="max-w-40 truncate">
           Near: {label}
         </span>
-        <span className="text-primary underline">change</span>
+        <span className="text-primary-ink underline">change</span>
       </button>
       <LocationPickerDialog
         open={open}

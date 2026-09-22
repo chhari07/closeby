@@ -8,8 +8,11 @@ export default async function InventoryPage() {
   const products = await getShopProducts(shop.id);
 
   return (
-    <div className="mx-auto max-w-3xl p-4 sm:p-6">
-      <h1 className="mb-4 text-xl font-bold">Inventory</h1>
+    <div className="mx-auto max-w-5xl p-4 sm:p-6">
+      <h1 className="mb-1 text-2xl font-bold">Inventory</h1>
+      <p className="text-muted-foreground mb-4 text-sm">
+        Add items one by one or import a JSON / CSV file.
+      </p>
       <InventoryTable shopId={shop.id} initialProducts={products} />
     </div>
   );

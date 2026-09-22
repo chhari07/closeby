@@ -1,68 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Plus, Upload } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import type { ProductInput } from "@/lib/validation/product";
-import { addProduct, deleteProduct } from "@/actions/products";
+import { ProductImage } from "@/components/product-image";
+import { ProductFormDialog } from "@/app/dashboard/inventory/product-form-dialog";
+import { JsonImportDialog } from "@/app/dashboard/inventory/json-import-dialog";
+import { deleteProduct, getShopProducts } from "@/actions/products";
 import { goLiveShop } from "@/actions/shops";
-import { formatPaise, rupeesToPaise } from "@/lib/money";
+import { formatPaise } from "@/lib/money";
+import type { ProductDoc } from "@/types";
 
-interface ProductRow {
-  id: string;
-  name: string;
-  price: number;
-  unit: string;
-  category: string;
-  stock: number;
-}
-
-// Form collects price in rupees (decimal), converted to integer paise on
-// submit — productSchema (paise) is enforced server-side in addProduct().
-const formSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(100),
-  price: z.number().positive("Enter a price"),
-  unit: z.string().trim().min(1, "Unit is required").max(20),
-  category: z.string().trim().min(1, "Category is required").max(40),
-  stock: z.number().int().min(0),
-});
+const MIN_PRODUCTS = 3;
 
 export function StepInventory({ shopId, onBack }: { shopId: string; onBack: () => void }) {
   const router = useRouter();
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [submitting, setSubmitting] = useState(false);
+  const [products, setProducts] = useState<ProductDoc[]>([]);
+  const [loading, setLoading] = useState(true);
   const [goingLive, setGoingLive] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: { name: "", price: 0, unit: "", category: "", stock: 0 },
-  });
-
-  async function onAdd(values: { name: string; price: number; unit: string; category: string; stock: number }) {
-    setSubmitting(true);
-    const input: ProductInput = { ...values, imageUrl: null };
-    const result = await addProduct(shopId, input);
-    setSubmitting(false);
-    if (!result.ok || !result.data) {
-      toast.error(result.error ?? "Could not add product");
-      return;
-    }
-    setProducts((prev) => [...prev, { id: result.data!.productId, ...values }]);
-    reset({ name: "", price: 0, unit: "", category: "", stock: 0 });
-  }
+  // Resume: show whatever was already added if the owner left and came back.
+  useEffect(() => {
+    let cancelled = false;
+    getShopProducts(shopId)
+      .then((list) => !cancelled && setProducts(list))
+      .catch(() => {})
+      .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [shopId]);
 
   async function onRemove(productId: string) {
     const result = await deleteProduct(shopId, productId);
@@ -90,53 +62,33 @@ export function StepInventory({ shopId, onBack }: { shopId: string; onBack: () =
   return (
     <div className="flex flex-col gap-5">
       <p className="text-muted-foreground text-sm">
-        Add at least 3 products to go live. You can add more, edit prices and stock anytime from
-        your dashboard.
+        Add at least {MIN_PRODUCTS} products to go live — one by one with a photo, or import a JSON /
+        CSV file together with your product photos. You can edit prices and stock anytime from your
+        dashboard.
       </p>
 
-      <form
-        onSubmit={handleSubmit((v) => onAdd({ ...v, price: rupeesToPaise(v.price) }))}
-        className="grid grid-cols-2 gap-3 sm:grid-cols-6"
-      >
-        <div className="col-span-2 flex flex-col gap-1 sm:col-span-2">
-          <Label htmlFor="name">Name</Label>
-          <Input id="name" placeholder="Amul Milk" {...register("name")} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="price">Price (₹)</Label>
-          <Input id="price" type="number" step="0.01" min={0} {...register("price", { valueAsNumber: true })} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="unit">Unit</Label>
-          <Input id="unit" placeholder="1 L" {...register("unit")} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="category">Category</Label>
-          <Input id="category" placeholder="Dairy" {...register("category")} />
-        </div>
-        <div className="flex flex-col gap-1">
-          <Label htmlFor="stock">Stock</Label>
-          <Input id="stock" type="number" min={0} {...register("stock", { valueAsNumber: true })} />
-        </div>
-        <div className="col-span-2 sm:col-span-6">
-          <Button type="submit" variant="secondary" className="min-h-11 w-full" disabled={submitting}>
-            {submitting ? "Adding..." : "Add product"}
-          </Button>
-          {Object.values(errors)[0] && (
-            <p className="text-destructive mt-1 text-sm">
-              {Object.values(errors)[0]?.message as string}
-            </p>
-          )}
-        </div>
-      </form>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Button type="button" variant="secondary" className="min-h-11" onClick={() => setAddOpen(true)}>
+          <Plus className="size-4" /> Add a product
+        </Button>
+        <Button type="button" variant="outline" className="min-h-11" onClick={() => setImportOpen(true)}>
+          <Upload className="size-4" /> Import file + photos
+        </Button>
+      </div>
 
       <div className="flex flex-col gap-2">
-        {products.length === 0 && (
+        {loading && (
+          <p className="text-muted-foreground py-6 text-center text-sm">
+            <Loader2 className="mx-auto size-4 animate-spin" />
+          </p>
+        )}
+        {!loading && products.length === 0 && (
           <p className="text-muted-foreground py-6 text-center text-sm">No products added yet.</p>
         )}
         {products.map((p) => (
-          <Card key={p.id} className="flex flex-row items-center justify-between gap-3 p-3">
-            <div className="min-w-0">
+          <Card key={p.id} className="flex flex-row items-center gap-3 p-3">
+            <ProductImage src={p.imageUrl} alt={p.name} className="size-12 shrink-0 rounded-lg" />
+            <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{p.name}</p>
               <p className="text-muted-foreground text-xs">
                 {formatPaise(p.price)} · {p.unit} · {p.category} · stock {p.stock}
@@ -162,12 +114,32 @@ export function StepInventory({ shopId, onBack }: { shopId: string; onBack: () =
         <Button
           type="button"
           className="min-h-11 flex-1"
-          disabled={products.length < 3 || goingLive}
+          disabled={products.length < MIN_PRODUCTS || goingLive}
           onClick={handleGoLive}
         >
-          {goingLive ? <Loader2 className="size-4 animate-spin" /> : `Go live (${products.length}/3)`}
+          {goingLive ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            `Go live (${Math.min(products.length, MIN_PRODUCTS)}/${MIN_PRODUCTS})`
+          )}
         </Button>
       </div>
+
+      <ProductFormDialog
+        shopId={shopId}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSaved={(product) => {
+          setProducts((prev) => [product, ...prev]);
+          setAddOpen(false);
+        }}
+      />
+      <JsonImportDialog
+        shopId={shopId}
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={(added) => setProducts((prev) => [...added, ...prev])}
+      />
     </div>
   );
 }

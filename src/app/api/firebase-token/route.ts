@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { adminAuth } from "@/lib/firebase/admin";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,14 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const limited = rateLimit("firebaseToken", userId);
+  if (!limited.ok) {
+    return NextResponse.json(
+      { error: rateLimitMessage(limited.retryAfterSec) },
+      { status: 429, headers: { "Retry-After": String(limited.retryAfterSec) } }
+    );
   }
 
   // Firebase rejects uids longer than 128 chars; Clerk ids are well under,

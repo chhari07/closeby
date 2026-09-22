@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { doc, onSnapshot } from "firebase/firestore";
+import { OrderBill } from "@/components/orders/order-bill";
+import { useFirebaseReady } from "@/lib/hooks/use-firebase-ready";
 import { toast } from "sonner";
 import { Check, X, Loader2, Phone } from "lucide-react";
 import { getDb } from "@/lib/firebase/client";
@@ -19,10 +21,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { transitionOrder } from "@/actions/orders";
 import { isTerminal } from "@/lib/orders/transitions";
-import { formatPaise } from "@/lib/money";
 import type { OrderDoc, OrderStatus } from "@/types";
 
-const STEPS: OrderStatus[] = ["PLACED", "ACCEPTED", "PREPARING", "READY", "COMPLETED"];
+const STEPS: OrderStatus[] = [
+  "PLACED",
+  "ACCEPTED",
+  "PREPARING",
+  "READY",
+  "COMPLETED",
+];
 const STEP_LABELS: Record<OrderStatus, string> = {
   PLACED: "Placed",
   ACCEPTED: "Accepted",
@@ -33,20 +40,34 @@ const STEP_LABELS: Record<OrderStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
-export function OrderTimeline({ initialOrder, orderId }: { initialOrder: OrderDoc; orderId: string }) {
+export function OrderTimeline({
+  initialOrder,
+  orderId,
+}: {
+  initialOrder: OrderDoc;
+  orderId: string;
+}) {
   const { user } = useUser();
   const [order, setOrder] = useState(initialOrder);
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
+  const firebaseReady = useFirebaseReady();
+
   useEffect(() => {
-    const unsub = onSnapshot(doc(getDb(), "orders", orderId), (snap) => {
-      if (snap.exists()) {
-        setOrder({ id: snap.id, ...(snap.data() as Omit<OrderDoc, "id">) });
-      }
-    });
+    if (!firebaseReady) return;
+    const unsub = onSnapshot(
+      doc(getDb(), "orders", orderId),
+      (snap) => {
+        if (snap.exists()) {
+          setOrder({ id: snap.id, ...(snap.data() as Omit<OrderDoc, "id">) });
+        }
+      },
+      // Server-rendered order stays on screen if live updates can't start.
+      (err) => console.error("Order listener failed", err),
+    );
     return unsub;
-  }, [orderId]);
+  }, [orderId, firebaseReady]);
 
   const isBuyer = user?.id === order.buyerId;
   const terminal = isTerminal(order.status);
@@ -64,7 +85,9 @@ export function OrderTimeline({ initialOrder, orderId }: { initialOrder: OrderDo
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-bold">{order.shopName}</h1>
-        <p className="text-muted-foreground text-sm">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+        <p className="text-muted-foreground text-sm">
+          Order #{order.id.slice(0, 8).toUpperCase()}
+        </p>
       </div>
 
       {!terminal ? (
@@ -77,15 +100,23 @@ export function OrderTimeline({ initialOrder, orderId }: { initialOrder: OrderDo
                 <div className="flex flex-col items-center">
                   <div
                     className={`flex size-7 shrink-0 items-center justify-center rounded-full ${
-                      done ? "bg-status-progress text-white" : "bg-muted text-muted-foreground"
+                      done
+                        ? "bg-status-progress text-white"
+                        : "bg-muted text-muted-foreground"
                     } ${step === "COMPLETED" && done ? "bg-status-ready" : ""}`}
                   >
                     {done ? <Check className="size-4" /> : null}
                   </div>
-                  {!isLast && <div className={`w-0.5 flex-1 ${done ? "bg-status-progress" : "bg-muted"}`} />}
+                  {!isLast && (
+                    <div
+                      className={`w-0.5 flex-1 ${done ? "bg-status-progress" : "bg-muted"}`}
+                    />
+                  )}
                 </div>
                 <div className="pb-6">
-                  <p className={`font-medium ${done ? "" : "text-muted-foreground"}`}>
+                  <p
+                    className={`font-medium ${done ? "" : "text-muted-foreground"}`}
+                  >
                     {STEP_LABELS[step]}
                   </p>
                 </div>
@@ -101,42 +132,21 @@ export function OrderTimeline({ initialOrder, orderId }: { initialOrder: OrderDo
               : "bg-status-stopped/10 text-status-stopped"
           }`}
         >
-          {order.status === "COMPLETED" ? <Check className="size-5" /> : <X className="size-5" />}
+          {order.status === "COMPLETED" ? (
+            <Check className="size-5" />
+          ) : (
+            <X className="size-5" />
+          )}
           <div>
             <p className="font-medium">{STEP_LABELS[order.status]}</p>
-            {order.rejectionReason && <p className="text-sm">{order.rejectionReason}</p>}
+            {order.rejectionReason && (
+              <p className="text-sm">{order.rejectionReason}</p>
+            )}
           </div>
         </div>
       )}
 
-      <div className="rounded-xl border p-4">
-        <h2 className="mb-2 text-sm font-semibold">Items</h2>
-        <div className="flex flex-col gap-1 text-sm">
-          {order.items.map((item) => (
-            <div key={item.productId} className="flex justify-between">
-              <span className="text-muted-foreground">
-                {item.name} × {item.qty}
-              </span>
-              <span>{formatPaise(item.price * item.qty)}</span>
-            </div>
-          ))}
-          <div className="mt-1 flex justify-between border-t pt-1 font-semibold">
-            <span>Total</span>
-            <span>{formatPaise(order.itemTotal)}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border p-4 text-sm">
-        <p className="text-muted-foreground">Delivering to</p>
-        <p>{order.deliveryAddress.line1}</p>
-        {order.deliveryAddress.landmark && (
-          <p className="text-muted-foreground">{order.deliveryAddress.landmark}</p>
-        )}
-        <p className="text-muted-foreground mt-2">
-          Payment: {order.paymentMethod === "cod" ? "Cash on delivery" : "Pay at shop"}
-        </p>
-      </div>
+      <OrderBill order={order} showBuyer={!isBuyer} />
 
       {isBuyer && order.status === "PLACED" && (
         <Button
@@ -145,7 +155,11 @@ export function OrderTimeline({ initialOrder, orderId }: { initialOrder: OrderDo
           disabled={cancelling}
           onClick={() => setConfirmCancel(true)}
         >
-          {cancelling ? <Loader2 className="size-4 animate-spin" /> : "Cancel order"}
+          {cancelling ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            "Cancel order"
+          )}
         </Button>
       )}
 
@@ -161,11 +175,15 @@ export function OrderTimeline({ initialOrder, orderId }: { initialOrder: OrderDo
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
-            <AlertDialogDescription>This can&apos;t be undone.</AlertDialogDescription>
+            <AlertDialogDescription>
+              This can&apos;t be undone.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep order</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancel}>Cancel order</AlertDialogAction>
+            <AlertDialogAction onClick={handleCancel}>
+              Cancel order
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

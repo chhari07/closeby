@@ -71,7 +71,7 @@ export function SearchExplorer({
 
         {lat && lng && !loading && filtered.length === 0 && (
           <p className="text-muted-foreground py-16 text-center text-sm">
-            {q ? `No shops matching "${query}" within ${radiusM / 1000} km.` : "No open shops nearby right now."}
+            {q ? `No shops matching "${query}"${radiusM === 0 ? "" : ` within ${radiusM / 1000} km`}.` : "No open shops nearby right now."}
           </p>
         )}
 

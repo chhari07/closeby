@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, LocateFixed, MapPin, Plus } from "lucide-react";
@@ -18,7 +18,9 @@ import type { SavedAddress, PaymentMethod } from "@/types";
 
 export function CheckoutForm({ savedAddresses }: { savedAddresses: SavedAddress[] }) {
   const router = useRouter();
-  const { shopId, shopName, items, removeItems, updateItemPrice, clear } = useCartStore();
+  const { shopId, shopName, items, removeItems, updateItemPrice, updateQty, clear } = useCartStore();
+  // Set once the order is placed so clearing the cart doesn't bounce to /cart.
+  const placed = useRef(false);
   const [addresses, setAddresses] = useState(savedAddresses);
   const [selectedId, setSelectedId] = useState<string | null>(savedAddresses[0]?.id ?? null);
   const [addingNew, setAddingNew] = useState(savedAddresses.length === 0);
@@ -86,6 +88,9 @@ export function CheckoutForm({ savedAddresses }: { savedAddresses: SavedAddress[
       if (result.rejection?.removedProductIds?.length) {
         removeItems(result.rejection.removedProductIds);
       }
+      for (const limit of result.rejection?.stockLimits ?? []) {
+        updateQty(limit.productId, limit.available);
+      }
       if (result.rejection?.priceChanges?.length) {
         for (const change of result.rejection.priceChanges) {
           updateItemPrice(change.productId, change.newPrice);
@@ -94,12 +99,13 @@ export function CheckoutForm({ savedAddresses }: { savedAddresses: SavedAddress[
       return;
     }
 
-    clear();
+    placed.current = true;
     router.push(`/orders/${result.data!.orderId}`);
+    clear();
   }
 
   useEffect(() => {
-    if (!shopId || items.length === 0) router.replace("/cart");
+    if (!placed.current && (!shopId || items.length === 0)) router.replace("/cart");
   }, [shopId, items.length, router]);
 
   if (!shopId || items.length === 0) {

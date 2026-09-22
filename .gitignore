@@ -8,3 +8,16 @@ out/
 .DS_Store
 npm-debug.log*
 coverage/
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# firebase emulator
+*-debug.log
+.firebase/
+
+# Claude Code worktrees (full repo copies used as scratch space)
+/.claude/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

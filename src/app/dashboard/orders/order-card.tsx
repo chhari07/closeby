@@ -2,18 +2,26 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Phone, Loader2 } from "lucide-react";
+import { Phone, Loader2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
+import { BillDialog } from "@/components/orders/order-bill";
 import { ReasonDialog } from "@/components/orders/reason-dialog";
 import { transitionOrder } from "@/actions/orders";
 import { formatPaise } from "@/lib/money";
 import type { OrderDoc, OrderStatus } from "@/types";
 
-export function OrderCard({ order }: { order: OrderDoc }) {
+export function OrderCard({
+  order,
+  onChanged,
+}: {
+  order: OrderDoc;
+  onChanged?: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [billOpen, setBillOpen] = useState(false);
 
   async function advance(to: OrderStatus, reason?: string) {
     setBusy(true);
@@ -22,6 +30,7 @@ export function OrderCard({ order }: { order: OrderDoc }) {
     setRejectOpen(false);
     setCancelOpen(false);
     if (!result.ok) toast.error(result.error ?? "Could not update order");
+    onChanged?.(); // show the new status right away instead of waiting for the next refresh
   }
 
   return (
@@ -39,7 +48,10 @@ export function OrderCard({ order }: { order: OrderDoc }) {
 
       <div className="mt-2 flex flex-col gap-0.5 text-sm">
         {order.items.map((item) => (
-          <div key={item.productId} className="text-muted-foreground flex justify-between">
+          <div
+            key={item.productId}
+            className="text-muted-foreground flex justify-between"
+          >
             <span>
               {item.name} × {item.qty}
             </span>
@@ -54,7 +66,9 @@ export function OrderCard({ order }: { order: OrderDoc }) {
 
       <p className="text-muted-foreground mt-2 text-xs">
         {order.deliveryAddress.line1}
-        {order.deliveryAddress.landmark ? `, ${order.deliveryAddress.landmark}` : ""}
+        {order.deliveryAddress.landmark
+          ? `, ${order.deliveryAddress.landmark}`
+          : ""}
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
@@ -64,22 +78,44 @@ export function OrderCard({ order }: { order: OrderDoc }) {
           </Button>
         </a>
 
+        <Button size="sm" variant="outline" onClick={() => setBillOpen(true)}>
+          <Receipt className="size-3.5" /> Bill
+        </Button>
+
         {order.status === "PLACED" && (
           <>
-            <Button size="sm" disabled={busy} onClick={() => advance("ACCEPTED")}>
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={() => advance("ACCEPTED")}
+            >
               {busy ? <Loader2 className="size-3.5 animate-spin" /> : "Accept"}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => setRejectOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setRejectOpen(true)}
+            >
               Reject
             </Button>
           </>
         )}
         {order.status === "ACCEPTED" && (
           <>
-            <Button size="sm" disabled={busy} onClick={() => advance("PREPARING")}>
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={() => advance("PREPARING")}
+            >
               Start preparing
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => setCancelOpen(true)}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setCancelOpen(true)}
+            >
               Cancel
             </Button>
           </>
@@ -90,12 +126,17 @@ export function OrderCard({ order }: { order: OrderDoc }) {
           </Button>
         )}
         {order.status === "READY" && (
-          <Button size="sm" disabled={busy} onClick={() => advance("COMPLETED")}>
+          <Button
+            size="sm"
+            disabled={busy}
+            onClick={() => advance("COMPLETED")}
+          >
             Mark completed
           </Button>
         )}
       </div>
 
+      <BillDialog order={order} open={billOpen} onOpenChange={setBillOpen} />
       <ReasonDialog
         open={rejectOpen}
         onOpenChange={setRejectOpen}

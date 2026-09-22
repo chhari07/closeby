@@ -10,9 +10,9 @@ import { LocationPickerDialog } from "./location-picker-dialog";
 import { ShopCard } from "./shop-card";
 import { ShopListSkeleton } from "./shop-list-skeleton";
 import { Button } from "@/components/ui/button";
+import { ANY_DISTANCE, RADIUS_OPTIONS, radiusLabel } from "@/lib/geo/radius";
 import type { Locality, NearbyShopResult } from "@/types";
 
-const RADII = [1000, 3000, 5000];
 
 export function ShopsExplorer({
   initialLocalities,
@@ -55,17 +55,17 @@ export function ShopsExplorer({
           </div>
         ) : (
           <>
-            <div className="mb-3 flex gap-2">
-              {RADII.map((r) => (
+            <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+              {RADIUS_OPTIONS.map((r) => (
                 <button
                   key={r}
                   type="button"
                   onClick={() => setRadius(r)}
-                  className={`min-h-9 rounded-full border px-3 text-sm ${
+                  className={`min-h-9 shrink-0 rounded-full border px-3 text-sm ${
                     radiusM === r ? "border-primary bg-accent" : "border-border"
                   }`}
                 >
-                  {r / 1000} km
+                  {radiusLabel(r)}
                 </button>
               ))}
             </div>
@@ -74,14 +74,18 @@ export function ShopsExplorer({
 
             {!loading && results && results.length === 0 && (
               <div className="text-muted-foreground py-16 text-center text-sm">
-                <p>No open shops within {radiusM / 1000} km right now.</p>
-                {radiusM < 5000 && (
+                <p>
+                  {radiusM === ANY_DISTANCE
+                    ? "No open shops right now."
+                    : `No open shops within ${radiusM / 1000} km right now.`}
+                </p>
+                {radiusM !== ANY_DISTANCE && (
                   <Button
                     variant="outline"
                     className="mt-4 min-h-11"
-                    onClick={() => setRadius(radiusM === 1000 ? 3000 : 5000)}
+                    onClick={() => setRadius(ANY_DISTANCE)}
                   >
-                    Search a wider area
+                    Search any distance
                   </Button>
                 )}
               </div>

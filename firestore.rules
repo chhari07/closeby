@@ -1,5 +1,8 @@
 rules_version = '2';
 
+// All Firestore WRITES go through server actions (src/actions/*) using the
+// Admin SDK, which bypasses these rules. The client SDK is read-only so a
+// user can never fake an order, price, status, role or shop status directly.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -20,9 +23,10 @@ service cloud.firestore {
         get(/databases/$(database)/documents/shops/$(shopId)).data.ownerId == request.auth.uid;
     }
 
-    // users/{uid} — self only.
+    // users/{uid} — read own profile only. Writes are server-only (role lives here).
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow write: if false;
     }
 
     // localities — read-only reference data, seeded server-side.
@@ -31,47 +35,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // shops/{shopId}
+    // shops/{shopId} — live shops are public; drafts are visible to their owner.
     match /shops/{shopId} {
       allow read: if shopIsLive(resource.data) || (isSignedIn() && resource.data.ownerId == request.auth.uid);
-
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-
-      allow update: if isSignedIn() &&
-        resource.data.ownerId == request.auth.uid &&
-        request.resource.data.ownerId == resource.data.ownerId;
-
-      allow delete: if false;
+      allow write: if false;
 
       // shops/{shopId}/products/{productId}
       match /products/{productId} {
         allow read: if shopIsLive(get(/databases/$(database)/documents/shops/$(shopId)).data) ||
           ownsShop(shopId);
-        allow write: if ownsShop(shopId);
+        allow write: if false;
       }
     }
 
-    // orders/{orderId} — top-level, queried by both buyer and shop owner.
+    // orders/{orderId} — readable by the buyer and the shop owner, written by the server only.
     match /orders/{orderId} {
       allow read: if isSignedIn() &&
         (resource.data.buyerId == request.auth.uid || ownsShop(resource.data.shopId));
-
-      allow create: if isSignedIn() &&
-        request.resource.data.buyerId == request.auth.uid &&
-        request.resource.data.status == "PLACED";
-
-      // Buyer or shop owner may only ever change status/timeline/rejectionReason/updatedAt.
-      // items and itemTotal are frozen at creation time — never mutable.
-      allow update: if isSignedIn() &&
-        (resource.data.buyerId == request.auth.uid || ownsShop(resource.data.shopId)) &&
-        request.resource.data.items == resource.data.items &&
-        request.resource.data.itemTotal == resource.data.itemTotal &&
-        request.resource.data.buyerId == resource.data.buyerId &&
-        request.resource.data.shopId == resource.data.shopId &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(["status", "timeline", "rejectionReason", "updatedAt"]);
-
-      allow delete: if false;
+      allow write: if false;
     }
   }
 }

@@ -1,9 +1,21 @@
-import { SignIn } from "@clerk/nextjs";
+import { redirect } from "next/navigation";
+import { redirectIfSignedIn } from "@/lib/auth/redirect-if-signed-in";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { SignInForm } from "@/components/auth/sign-in-form";
 
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ role?: string }>;
+}) {
+  await redirectIfSignedIn();
+  const { role } = await searchParams;
+  // Ask "buyer or shop owner?" first, same as sign-up.
+  if (role !== "buyer" && role !== "shop_owner") redirect("/get-started?mode=signin");
+
   return (
-    <div className="flex min-h-svh items-center justify-center bg-secondary/40 p-4">
-      <SignIn />
-    </div>
+    <AuthShell role={role}>
+      <SignInForm role={role} />
+    </AuthShell>
   );
 }

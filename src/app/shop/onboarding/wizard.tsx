@@ -40,7 +40,7 @@ export function OnboardingWizard({ initialShop }: { initialShop: ShopDoc | null 
                   active
                     ? "bg-primary text-primary-foreground"
                     : done
-                      ? "bg-primary/20 text-primary"
+                      ? "bg-primary/20 text-primary-ink"
                       : "bg-muted text-muted-foreground"
                 }`}
               >

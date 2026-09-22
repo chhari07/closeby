@@ -8,9 +8,19 @@ const ShopContext = createContext<{
   setShop: (shop: ShopDoc) => void;
 } | null>(null);
 
-export function ShopProvider({ shop: initial, children }: { shop: ShopDoc; children: ReactNode }) {
+export function ShopProvider({
+  shop: initial,
+  children,
+}: {
+  shop: ShopDoc;
+  children: ReactNode;
+}) {
   const [shop, setShop] = useState(initial);
-  return <ShopContext.Provider value={{ shop, setShop }}>{children}</ShopContext.Provider>;
+  return (
+    <ShopContext.Provider value={{ shop, setShop }}>
+      {children}
+    </ShopContext.Provider>
+  );
 }
 
 export function useShop() {

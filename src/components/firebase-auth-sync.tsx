@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { signInWithCustomToken, signOut } from "firebase/auth";
-import { getFirebaseAuth } from "@/lib/firebase/client";
+import { getFirebaseAuth, isFirebaseConfigured } from "@/lib/firebase/client";
 
 /**
  * Keeps the Firebase Auth session in sync with the Clerk session so
@@ -14,6 +14,10 @@ export function FirebaseAuthSync() {
   const { isSignedIn, userId } = useAuth();
 
   useEffect(() => {
+    if (!isFirebaseConfigured) {
+      console.warn("Firebase keys missing: copy .env.local.example to .env.local and fill them in.");
+      return;
+    }
     let cancelled = false;
 
     async function sync() {
