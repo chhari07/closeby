@@ -1,0 +1,59 @@
+name: CI
+
+# Step 1.6: the checks that have to pass before anything ships — lint,
+# typecheck, unit tests, and a production build. Runs on every push and PR.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A build needs Clerk/Firebase keys to prerender pages that read them.
+# These are dummy, non-secret values so the build succeeds without real
+# credentials — replace with `${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}`
+# etc. (added under repo Settings > Secrets) once real keys should be baked
+# into CI-built artifacts.
+env:
+  NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+  CLERK_SECRET_KEY: sk_test_ci_placeholder
+  NEXT_PUBLIC_CLERK_SIGN_IN_URL: /sign-in
+  NEXT_PUBLIC_CLERK_SIGN_UP_URL: /sign-up
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL: /
+  NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL: /
+  NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci-placeholder.firebaseapp.com
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-placeholder
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci-placeholder.appspot.com
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "000000000000"
+  NEXT_PUBLIC_FIREBASE_APP_ID: "1:000000000000:web:0000000000000000000000"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      # ubuntu-latest ships a JRE, which the Firestore emulator needs —
+      # no extra setup required, and no real credentials either: rules
+      # tests run entirely against the local emulator.
+      - name: Firestore rules tests
+        run: npm run test:rules
+
+      - name: Build
+        run: npm run build

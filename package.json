@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:rules": "firebase emulators:exec --only firestore \"vitest run\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude \"**/firestore.rules.test.ts\"",
+    "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/firestore.rules.test.ts\"",
     "seed:localities": "tsx scripts/seed-localities.ts"
   },
   "dependencies": {
@@ -24,7 +26,6 @@
     "lucide-react": "^1.31.0",
     "next": "15.5.23",
     "next-themes": "^0.4.6",
-    "radix-ui": "^1.6.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.85.0",
@@ -47,6 +48,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
+    "firebase-tools": "^15.30.2",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
     "typescript": "^5",

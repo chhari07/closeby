@@ -1,22 +1,18 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { adminDb } from "@/lib/firebase/admin";
+import { requireUserId, requireShopOwner } from "@/lib/auth/guards";
 import { toGeohash, nearestLocality } from "@/lib/geo/geohash";
 import {
   shopTypeStepSchema,
   shopDetailsStepSchema,
+  shopSeedSchema,
+  shopHoursSchema,
   shopLocationStepSchema,
 } from "@/lib/validation/shop";
 import type { ShopDoc, Locality } from "@/types";
 import type { z } from "zod";
 import type { ActionResult } from "./types";
-
-async function requireUserId(): Promise<string> {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Not signed in");
-  return userId;
-}
 
 function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc {
   return {
@@ -65,12 +61,22 @@ async function ensureDraftShop(userId: string): Promise<string> {
   return ref.id;
 }
 
-async function assertOwnsShop(userId: string, shopId: string) {
-  const doc = await adminDb().collection("shops").doc(shopId).get();
-  if (!doc.exists || doc.data()?.ownerId !== userId) {
-    throw new Error("You do not own this shop");
-  }
-  return doc;
+/**
+ * Called right after sign-up so the shop name and phone typed into the
+ * sign-up form seed the draft shop — the onboarding wizard's Details step
+ * then arrives pre-filled instead of asking for them again.
+ */
+export async function createShopDraft(input: { name: string; phone: string }): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const parsed = shopSeedSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+
+  const shopId = await ensureDraftShop(userId);
+  await adminDb()
+    .collection("shops")
+    .doc(shopId)
+    .update({ name: parsed.data.name, phone: parsed.data.phone, updatedAt: Date.now() });
+  return { ok: true };
 }
 
 export async function saveShopType(input: z.infer<typeof shopTypeStepSchema>): Promise<ActionResult<{ shopId: string }>> {
@@ -93,8 +99,7 @@ export async function saveShopDetails(
   shopId: string,
   input: z.infer<typeof shopDetailsStepSchema>
 ): Promise<ActionResult> {
-  const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await requireShopOwner(shopId);
   const parsed = shopDetailsStepSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
@@ -128,8 +133,7 @@ export async function saveShopLocation(
   shopId: string,
   input: z.infer<typeof shopLocationStepSchema>
 ): Promise<ActionResult> {
-  const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await requireShopOwner(shopId);
   const parsed = shopLocationStepSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
@@ -169,8 +173,7 @@ export async function saveShopLocation(
 }
 
 export async function goLiveShop(shopId: string): Promise<ActionResult> {
-  const userId = await requireUserId();
-  const doc = await assertOwnsShop(userId, shopId);
+  const { shop: doc } = await requireShopOwner(shopId);
   const data = doc.data()!;
 
   if (!data.type || !data.name || !data.phone || !data.hours || !data.location) {
@@ -193,8 +196,7 @@ export async function goLiveShop(shopId: string): Promise<ActionResult> {
 }
 
 export async function toggleShopOpen(shopId: string, isOpen: boolean): Promise<ActionResult> {
-  const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await requireShopOwner(shopId);
   await adminDb().collection("shops").doc(shopId).update({ isOpen, updatedAt: Date.now() });
   return { ok: true };
 }
@@ -203,8 +205,24 @@ export async function updateShopHours(
   shopId: string,
   hours: { open: string; close: string; days: number[] }
 ): Promise<ActionResult> {
-  const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
-  await adminDb().collection("shops").doc(shopId).update({ hours, updatedAt: Date.now() });
+  await requireShopOwner(shopId);
+  const parsed = shopHoursSchema.safeParse(hours);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  await adminDb().collection("shops").doc(shopId).update({ hours: parsed.data, updatedAt: Date.now() });
+  return { ok: true };
+}
+
+/** Owner-editable shop identity (name + contact number) from the profile page. */
+export async function updateShopProfile(
+  shopId: string,
+  input: { name: string; phone: string }
+): Promise<ActionResult> {
+  await requireShopOwner(shopId);
+  const parsed = shopSeedSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
+  await adminDb()
+    .collection("shops")
+    .doc(shopId)
+    .update({ name: parsed.data.name, phone: parsed.data.phone, updatedAt: Date.now() });
   return { ok: true };
 }

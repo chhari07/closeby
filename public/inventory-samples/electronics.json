@@ -1,0 +1,481 @@
+[
+  {
+    "name": "USB-C Fast Charger",
+    "brand": "Mi",
+    "category": "Chargers",
+    "unit": "20 W",
+    "price": 599,
+    "mrp": 899,
+    "stock": 25,
+    "imageUrl": "/inventory-samples/images/electronics-usb-c-fast-charger-mi.svg",
+    "description": "20 W fast charger with USB-C output.",
+    "aliases": [
+      "charger"
+    ]
+  },
+  {
+    "name": "Dual Port Car Charger",
+    "brand": "Ambrane",
+    "category": "Chargers",
+    "unit": "30 W",
+    "price": 449,
+    "mrp": 699,
+    "stock": 18,
+    "imageUrl": "/inventory-samples/images/electronics-dual-port-car-charger-ambrane.svg",
+    "description": "Dual USB car charger with fast charging.",
+    "aliases": [
+      "car charger"
+    ]
+  },
+  {
+    "name": "Power Bank",
+    "brand": "Ambrane",
+    "category": "Power Banks",
+    "unit": "10000 mAh",
+    "price": 999,
+    "mrp": 1499,
+    "stock": 18,
+    "imageUrl": "/inventory-samples/images/electronics-power-bank-ambrane.svg",
+    "description": "Compact 10000 mAh power bank, dual output.",
+    "aliases": [
+      "power bank"
+    ]
+  },
+  {
+    "name": "Power Bank Slim",
+    "brand": "Mi",
+    "category": "Power Banks",
+    "unit": "20000 mAh",
+    "price": 1799,
+    "mrp": 2499,
+    "stock": 10,
+    "imageUrl": "/inventory-samples/images/electronics-power-bank-slim-mi.svg",
+    "description": "20000 mAh slim power bank, 18 W fast charge.",
+    "aliases": [
+      "power bank"
+    ]
+  },
+  {
+    "name": "Wired Earphones",
+    "brand": "boAt",
+    "category": "Audio",
+    "unit": "1 piece",
+    "price": 349,
+    "mrp": 599,
+    "stock": 40,
+    "imageUrl": "/inventory-samples/images/electronics-wired-earphones-boat.svg",
+    "description": "In-ear earphones with mic and deep bass.",
+    "aliases": [
+      "earphones",
+      "headphones"
+    ]
+  },
+  {
+    "name": "Bluetooth Neckband",
+    "brand": "boAt",
+    "category": "Audio",
+    "unit": "1 piece",
+    "price": 999,
+    "mrp": 1799,
+    "stock": 22,
+    "imageUrl": "/inventory-samples/images/electronics-bluetooth-neckband-boat.svg",
+    "description": "Wireless neckband, 30-hour playback.",
+    "aliases": [
+      "neckband"
+    ]
+  },
+  {
+    "name": "True Wireless Earbuds",
+    "brand": "Realme",
+    "category": "Audio",
+    "unit": "1 pair",
+    "price": 1499,
+    "mrp": 2499,
+    "stock": 15,
+    "imageUrl": "/inventory-samples/images/electronics-true-wireless-earbuds-realme.svg",
+    "description": "Earbuds with ENC mic and charging case.",
+    "aliases": [
+      "earbuds",
+      "tws"
+    ]
+  },
+  {
+    "name": "Bluetooth Speaker",
+    "brand": "JBL",
+    "category": "Audio",
+    "unit": "1 piece",
+    "price": 1999,
+    "mrp": 2999,
+    "stock": 9,
+    "imageUrl": "/inventory-samples/images/electronics-bluetooth-speaker-jbl.svg",
+    "description": "Portable waterproof Bluetooth speaker.",
+    "aliases": [
+      "speaker"
+    ]
+  },
+  {
+    "name": "Collar Microphone",
+    "brand": "Boya",
+    "category": "Audio",
+    "unit": "1 piece",
+    "price": 599,
+    "mrp": 999,
+    "stock": 14,
+    "imageUrl": "/inventory-samples/images/electronics-collar-microphone-boya.svg",
+    "description": "Clip-on microphone for phones and cameras.",
+    "aliases": [
+      "mic",
+      "microphone"
+    ]
+  },
+  {
+    "name": "LED Bulb 9 W",
+    "brand": "Philips",
+    "category": "Lighting",
+    "unit": "1 piece",
+    "price": 89,
+    "mrp": 110,
+    "stock": 60,
+    "imageUrl": "/inventory-samples/images/electronics-led-bulb-9-w-philips.svg",
+    "description": "Energy-saving cool daylight LED bulb.",
+    "aliases": [
+      "bulb",
+      "led bulb"
+    ]
+  },
+  {
+    "name": "Smart Wi-Fi Bulb",
+    "brand": "Wipro",
+    "category": "Lighting",
+    "unit": "1 piece",
+    "price": 549,
+    "mrp": 799,
+    "stock": 20,
+    "imageUrl": "/inventory-samples/images/electronics-smart-wi-fi-bulb-wipro.svg",
+    "description": "Colour Wi-Fi smart bulb, works with Alexa.",
+    "aliases": [
+      "smart bulb"
+    ]
+  },
+  {
+    "name": "Rechargeable Torch",
+    "brand": "Eveready",
+    "category": "Lighting",
+    "unit": "1 piece",
+    "price": 299,
+    "mrp": 399,
+    "stock": 20,
+    "imageUrl": "/inventory-samples/images/electronics-rechargeable-torch-eveready.svg",
+    "description": "Bright LED torch with USB charging.",
+    "aliases": [
+      "torch"
+    ]
+  },
+  {
+    "name": "LED Strip Lights",
+    "brand": "Syska",
+    "category": "Lighting",
+    "unit": "5 m",
+    "price": 449,
+    "mrp": 699,
+    "stock": 16,
+    "imageUrl": "/inventory-samples/images/electronics-led-strip-lights-syska.svg",
+    "description": "RGB LED strip with remote control.",
+    "aliases": [
+      "strip lights"
+    ]
+  },
+  {
+    "name": "AA Batteries",
+    "brand": "Duracell",
+    "category": "Batteries",
+    "unit": "4 pack",
+    "price": 140,
+    "mrp": 160,
+    "stock": 55,
+    "imageUrl": "/inventory-samples/images/electronics-aa-batteries-duracell.svg",
+    "description": "Long-lasting alkaline AA cells.",
+    "aliases": [
+      "battery",
+      "cell"
+    ]
+  },
+  {
+    "name": "AAA Batteries",
+    "brand": "Duracell",
+    "category": "Batteries",
+    "unit": "4 pack",
+    "price": 130,
+    "mrp": 150,
+    "stock": 50,
+    "imageUrl": "/inventory-samples/images/electronics-aaa-batteries-duracell.svg",
+    "description": "Long-lasting alkaline AAA cells.",
+    "aliases": [
+      "battery",
+      "cell"
+    ]
+  },
+  {
+    "name": "Coin Cell CR2032",
+    "brand": "Panasonic",
+    "category": "Batteries",
+    "unit": "2 pack",
+    "price": 90,
+    "mrp": 120,
+    "stock": 45,
+    "imageUrl": "/inventory-samples/images/electronics-coin-cell-cr2032-panasonic.svg",
+    "description": "3 V lithium coin cells.",
+    "aliases": [
+      "button cell"
+    ]
+  },
+  {
+    "name": "Micro-USB Cable",
+    "brand": "Portronics",
+    "category": "Cables",
+    "unit": "1 m",
+    "price": 149,
+    "mrp": 249,
+    "stock": 35,
+    "imageUrl": "/inventory-samples/images/electronics-micro-usb-cable-portronics.svg",
+    "description": "Durable braided sync and charge cable.",
+    "aliases": [
+      "cable",
+      "charging cable"
+    ]
+  },
+  {
+    "name": "USB-C Cable",
+    "brand": "Ambrane",
+    "category": "Cables",
+    "unit": "1.5 m",
+    "price": 199,
+    "mrp": 349,
+    "stock": 40,
+    "imageUrl": "/inventory-samples/images/electronics-usb-c-cable-ambrane.svg",
+    "description": "Braided USB-C fast charging cable.",
+    "aliases": [
+      "cable",
+      "type c cable"
+    ]
+  },
+  {
+    "name": "Lightning Cable",
+    "brand": "Belkin",
+    "category": "Cables",
+    "unit": "1 m",
+    "price": 899,
+    "mrp": 1299,
+    "stock": 12,
+    "imageUrl": "/inventory-samples/images/electronics-lightning-cable-belkin.svg",
+    "description": "MFi certified Lightning cable.",
+    "aliases": [
+      "iphone cable"
+    ]
+  },
+  {
+    "name": "HDMI Cable",
+    "brand": "Amazon Basics",
+    "category": "Cables",
+    "unit": "1.5 m",
+    "price": 249,
+    "mrp": 399,
+    "stock": 22,
+    "imageUrl": "/inventory-samples/images/electronics-hdmi-cable-amazon-basics.svg",
+    "description": "High-speed HDMI 2.0 cable.",
+    "aliases": [
+      "hdmi"
+    ]
+  },
+  {
+    "name": "4-Socket Extension Board",
+    "brand": "Havells",
+    "category": "Electricals",
+    "unit": "2 m",
+    "price": 499,
+    "mrp": 699,
+    "stock": 17,
+    "imageUrl": "/inventory-samples/images/electronics-4-socket-extension-board-havells.svg",
+    "description": "Surge-protected extension board with switch.",
+    "aliases": [
+      "extension board",
+      "tapri"
+    ]
+  },
+  {
+    "name": "Universal Travel Adapter",
+    "brand": "Belkin",
+    "category": "Electricals",
+    "unit": "1 piece",
+    "price": 699,
+    "mrp": 999,
+    "stock": 11,
+    "imageUrl": "/inventory-samples/images/electronics-universal-travel-adapter-belkin.svg",
+    "description": "Worldwide plug adapter with USB port.",
+    "aliases": [
+      "travel adapter"
+    ]
+  },
+  {
+    "name": "Wireless Mouse",
+    "brand": "Logitech",
+    "category": "Computer Accessories",
+    "unit": "1 piece",
+    "price": 549,
+    "mrp": 795,
+    "stock": 12,
+    "imageUrl": "/inventory-samples/images/electronics-wireless-mouse-logitech.svg",
+    "description": "Silent-click wireless mouse with USB receiver.",
+    "aliases": [
+      "mouse"
+    ]
+  },
+  {
+    "name": "Wireless Keyboard",
+    "brand": "Logitech",
+    "category": "Computer Accessories",
+    "unit": "1 piece",
+    "price": 1199,
+    "mrp": 1699,
+    "stock": 8,
+    "imageUrl": "/inventory-samples/images/electronics-wireless-keyboard-logitech.svg",
+    "description": "Compact wireless keyboard, 1-year battery.",
+    "aliases": [
+      "keyboard"
+    ]
+  },
+  {
+    "name": "Pen Drive 64 GB",
+    "brand": "SanDisk",
+    "category": "Storage",
+    "unit": "64 GB",
+    "price": 549,
+    "mrp": 799,
+    "stock": 30,
+    "imageUrl": "/inventory-samples/images/electronics-pen-drive-64-gb-sandisk.svg",
+    "description": "USB 3.0 flash drive, 64 GB.",
+    "aliases": [
+      "pendrive",
+      "usb drive"
+    ]
+  },
+  {
+    "name": "Memory Card 128 GB",
+    "brand": "SanDisk",
+    "category": "Storage",
+    "unit": "128 GB",
+    "price": 899,
+    "mrp": 1399,
+    "stock": 20,
+    "imageUrl": "/inventory-samples/images/electronics-memory-card-128-gb-sandisk.svg",
+    "description": "microSD card, Class 10, 128 GB.",
+    "aliases": [
+      "memory card",
+      "sd card"
+    ]
+  },
+  {
+    "name": "Laptop Stand",
+    "brand": "Portronics",
+    "category": "Computer Accessories",
+    "unit": "1 piece",
+    "price": 799,
+    "mrp": 1299,
+    "stock": 10,
+    "imageUrl": "/inventory-samples/images/electronics-laptop-stand-portronics.svg",
+    "description": "Adjustable foldable aluminium laptop stand.",
+    "aliases": [
+      "laptop stand"
+    ]
+  },
+  {
+    "name": "Phone Tempered Glass",
+    "brand": "Spigen",
+    "category": "Mobile Accessories",
+    "unit": "1 piece",
+    "price": 199,
+    "mrp": 399,
+    "stock": 50,
+    "imageUrl": "/inventory-samples/images/electronics-phone-tempered-glass-spigen.svg",
+    "description": "9H tempered glass screen protector.",
+    "aliases": [
+      "tempered glass",
+      "screen guard"
+    ]
+  },
+  {
+    "name": "Phone Back Cover",
+    "brand": "Ringke",
+    "category": "Mobile Accessories",
+    "unit": "1 piece",
+    "price": 299,
+    "mrp": 499,
+    "stock": 35,
+    "imageUrl": "/inventory-samples/images/electronics-phone-back-cover-ringke.svg",
+    "description": "Shockproof transparent phone case.",
+    "aliases": [
+      "cover",
+      "phone case"
+    ]
+  },
+  {
+    "name": "Selfie Stick Tripod",
+    "brand": "Fotopro",
+    "category": "Mobile Accessories",
+    "unit": "1 piece",
+    "price": 649,
+    "mrp": 999,
+    "stock": 13,
+    "imageUrl": "/inventory-samples/images/electronics-selfie-stick-tripod-fotopro.svg",
+    "description": "Extendable tripod with Bluetooth remote.",
+    "aliases": [
+      "selfie stick",
+      "tripod"
+    ]
+  },
+  {
+    "name": "Smart Band",
+    "brand": "Mi",
+    "category": "Wearables",
+    "unit": "1 piece",
+    "price": 1499,
+    "mrp": 2299,
+    "stock": 14,
+    "imageUrl": "/inventory-samples/images/electronics-smart-band-mi.svg",
+    "description": "Fitness band with heart-rate and SpO2.",
+    "aliases": [
+      "smartwatch",
+      "fitness band"
+    ]
+  },
+  {
+    "name": "Wi-Fi Router",
+    "brand": "TP-Link",
+    "category": "Networking",
+    "unit": "1 piece",
+    "price": 1299,
+    "mrp": 1799,
+    "stock": 9,
+    "imageUrl": "/inventory-samples/images/electronics-wi-fi-router-tp-link.svg",
+    "description": "300 Mbps wireless N router.",
+    "aliases": [
+      "router",
+      "wifi router"
+    ]
+  },
+  {
+    "name": "Table Fan",
+    "brand": "Usha",
+    "category": "Appliances",
+    "unit": "1 piece",
+    "price": 1299,
+    "mrp": 1799,
+    "stock": 7,
+    "imageUrl": "/inventory-samples/images/electronics-table-fan-usha.svg",
+    "description": "400 mm high-speed table fan.",
+    "aliases": [
+      "pankha",
+      "fan"
+    ]
+  }
+]

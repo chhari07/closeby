@@ -5,7 +5,8 @@ import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 import { adminDb } from "@/lib/firebase/admin";
 import { placeOrderSchema, type PlaceOrderInput } from "@/lib/validation/order";
-import { isValidTransition, type Actor } from "@/lib/orders/transitions";
+import { isValidTransition, isTerminal, type Actor } from "@/lib/orders/transitions";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { ActionResult } from "./types";
 import type { OrderDoc, OrderItem, OrderStatus } from "@/types";
 
@@ -13,30 +14,57 @@ export interface PlaceOrderRejection {
   reason: string;
   priceChanges?: { productId: string; name: string; newPrice: number }[];
   removedProductIds?: string[];
+  /** Items whose requested qty exceeds what the shop has left. */
+  stockLimits?: { productId: string; name: string; available: number }[];
 }
 
 /** Thrown inside the transaction to carry a specific rejection out without a retry. */
 class PlaceOrderAbort extends Error {
-  constructor(public rejection: { error: string; detail: PlaceOrderRejection }) {
+  constructor(
+    public rejection: { error: string; detail: PlaceOrderRejection },
+  ) {
     super("PLACE_ORDER_ABORT");
   }
 }
 
 export async function placeOrder(
-  input: PlaceOrderInput
-): Promise<ActionResult<{ orderId: string }> & { rejection?: PlaceOrderRejection }> {
+  input: PlaceOrderInput,
+): Promise<
+  ActionResult<{ orderId: string }> & { rejection?: PlaceOrderRejection }
+> {
   const { userId } = await auth();
   if (!userId) return { ok: false, error: "Not signed in" };
 
+  const limited = rateLimit("placeOrder", userId);
+  if (!limited.ok) return { ok: false, error: rateLimitMessage(limited.retryAfterSec) };
+
   const parsed = placeOrderSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid order" };
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid order",
+    };
   }
-  const { shopId, items, deliveryAddress, paymentMethod } = parsed.data;
+  const { shopId, deliveryAddress, paymentMethod } = parsed.data;
+
+  // Merge duplicate lines for the same product so stock is checked (and
+  // deducted) once against the combined quantity.
+  const merged = new Map<
+    string,
+    { productId: string; qty: number; price: number }
+  >();
+  for (const line of parsed.data.items) {
+    const prev = merged.get(line.productId);
+    if (prev) prev.qty = Math.min(50, prev.qty + line.qty);
+    else merged.set(line.productId, { ...line });
+  }
+  const items = [...merged.values()];
 
   const shopRef = adminDb().collection("shops").doc(shopId);
   const userRef = adminDb().collection("users").doc(userId);
-  const productRefs = items.map((i) => shopRef.collection("products").doc(i.productId));
+  const productRefs = items.map((i) =>
+    shopRef.collection("products").doc(i.productId),
+  );
   const orderRef = adminDb().collection("orders").doc();
 
   // Read, validate and write inside one transaction — without this, a shop
@@ -60,14 +88,29 @@ export async function placeOrder(
       const shop = shopSnap.data()!;
       if (shop.status !== "live" || shop.isOpen !== true) {
         throw new PlaceOrderAbort({
-          error: "This shop is no longer accepting orders. Please refresh your cart.",
+          error:
+            "This shop is no longer accepting orders. Please refresh your cart.",
           detail: { reason: "shop_unavailable" },
         });
       }
 
       const removedProductIds: string[] = [];
-      const priceChanges: { productId: string; name: string; newPrice: number }[] = [];
+      const priceChanges: {
+        productId: string;
+        name: string;
+        newPrice: number;
+      }[] = [];
+      const stockLimits: {
+        productId: string;
+        name: string;
+        available: number;
+      }[] = [];
       const orderItems: OrderItem[] = [];
+      const stockUpdates: {
+        ref: FirebaseFirestore.DocumentReference;
+        stock: number;
+        qty: number;
+      }[] = [];
 
       for (let i = 0; i < productSnaps.length; i++) {
         const doc = productSnaps[i]!;
@@ -82,9 +125,22 @@ export async function placeOrder(
           continue;
         }
         if (p.price !== wanted.price) {
-          priceChanges.push({ productId: doc.id, name: p.name, newPrice: p.price });
+          priceChanges.push({
+            productId: doc.id,
+            name: p.name,
+            newPrice: p.price,
+          });
           continue;
         }
+        if (p.stock < wanted.qty) {
+          stockLimits.push({
+            productId: doc.id,
+            name: p.name,
+            available: p.stock,
+          });
+          continue;
+        }
+        stockUpdates.push({ ref: doc.ref, stock: p.stock, qty: wanted.qty });
         orderItems.push({
           productId: doc.id,
           name: p.name,
@@ -96,8 +152,16 @@ export async function placeOrder(
 
       if (removedProductIds.length > 0) {
         throw new PlaceOrderAbort({
-          error: "Some items in your cart are no longer available. Your cart has been refreshed.",
+          error:
+            "Some items in your cart are no longer available. Your cart has been refreshed.",
           detail: { reason: "items_unavailable", removedProductIds },
+        });
+      }
+      if (stockLimits.length > 0) {
+        const first = stockLimits[0]!;
+        throw new PlaceOrderAbort({
+          error: `Only ${first.available} of ${first.name} left. Your cart has been updated.`,
+          detail: { reason: "insufficient_stock", stockLimits },
         });
       }
       if (priceChanges.length > 0) {
@@ -128,15 +192,31 @@ export async function placeOrder(
           lng: deliveryAddress.lng,
         },
         paymentMethod,
+        stockReserved: true,
         createdAt: now,
         updatedAt: now,
       };
 
+      // Reserve the stock: reject/cancel returns it (see transitionOrder).
+      for (const u of stockUpdates) {
+        const left = u.stock - u.qty;
+        tx.update(u.ref, { stock: left, inStock: left > 0, updatedAt: now });
+      }
       tx.set(orderRef, order);
+      // Step 1.3 running counters — read on the dashboard instead of
+      // scanning the orders collection.
+      tx.update(shopRef, {
+        orderCount: FieldValue.increment(1),
+        pendingOrderCount: FieldValue.increment(1),
+      });
     });
   } catch (err) {
     if (err instanceof PlaceOrderAbort) {
-      return { ok: false, error: err.rejection.error, rejection: err.rejection.detail };
+      return {
+        ok: false,
+        error: err.rejection.error,
+        rejection: err.rejection.detail,
+      };
     }
     throw err;
   }
@@ -178,10 +258,13 @@ class TransitionAbort extends Error {
 export async function transitionOrder(
   orderId: string,
   to: OrderStatus,
-  reason?: string
+  reason?: string,
 ): Promise<ActionResult> {
   const { userId } = await auth();
   if (!userId) return { ok: false, error: "Not signed in" };
+
+  const limited = rateLimit("transitionOrder", userId);
+  if (!limited.ok) return { ok: false, error: rateLimitMessage(limited.retryAfterSec) };
 
   const toParsed = orderStatusSchema.safeParse(to);
   const reasonParsed = reasonSchema.safeParse(reason);
@@ -204,7 +287,9 @@ export async function transitionOrder(
       if (order.buyerId === userId) {
         by = "buyer";
       } else {
-        const shopDoc = await tx.get(adminDb().collection("shops").doc(order.shopId));
+        const shopDoc = await tx.get(
+          adminDb().collection("shops").doc(order.shopId),
+        );
         if (shopDoc.data()?.ownerId !== userId) {
           throw new TransitionAbort("You do not have access to this order");
         }
@@ -213,13 +298,44 @@ export async function transitionOrder(
 
       const check = isValidTransition(order.status, toParsed.data, by);
       if (!check.ok) {
-        throw new TransitionAbort(`Cannot move an order from ${order.status} to ${toParsed.data}`);
+        throw new TransitionAbort(
+          `Cannot move an order from ${order.status} to ${toParsed.data}`,
+        );
       }
       if (check.reasonRequired && !reasonParsed.data) {
         throw new TransitionAbort("A reason is required for this action");
       }
 
+      // Reads must precede writes in a transaction, so load the products
+      // before touching anything when stock has to be handed back.
+      const releasesStock =
+        (toParsed.data === "REJECTED" || toParsed.data === "CANCELLED") &&
+        order.stockReserved;
+      const productDocs = releasesStock
+        ? await Promise.all(
+            order.items.map((item) =>
+              tx.get(
+                adminDb()
+                  .collection("shops")
+                  .doc(order.shopId)
+                  .collection("products")
+                  .doc(item.productId),
+              ),
+            ),
+          )
+        : [];
+
       const now = Date.now();
+      productDocs.forEach((doc, i) => {
+        if (!doc.exists) return; // product was deleted since the order
+        const stock = (doc.data()?.stock as number | undefined) ?? 0;
+        tx.update(doc.ref, {
+          stock: stock + order.items[i]!.qty,
+          inStock: true,
+          updatedAt: now,
+        });
+      });
+
       const update: Record<string, unknown> = {
         status: toParsed.data,
         updatedAt: now,
@@ -233,6 +349,12 @@ export async function transitionOrder(
       if (reasonParsed.data) update.rejectionReason = reasonParsed.data;
 
       tx.update(orderRef, update);
+      // Step 1.3: the order just left the "pending" bucket for good.
+      if (!isTerminal(order.status) && isTerminal(toParsed.data)) {
+        tx.update(adminDb().collection("shops").doc(order.shopId), {
+          pendingOrderCount: FieldValue.increment(-1),
+        });
+      }
     });
   } catch (err) {
     if (err instanceof TransitionAbort) {
@@ -244,14 +366,42 @@ export async function transitionOrder(
   return { ok: true };
 }
 
-export async function getTodayOrderCounts(shopId: string): Promise<Record<OrderStatus, number>> {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+export interface TodayStats {
+  counts: Record<OrderStatus, number>;
+  /** Sum of item totals (paise) for orders completed today. */
+  revenueToday: number;
+}
 
+// Shops are in India, so "today" runs midnight-to-midnight IST regardless of
+// where the server happens to run.
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+function startOfTodayIST(now = Date.now()): number {
+  return (
+    Math.floor((now + IST_OFFSET_MS) / 86_400_000) * 86_400_000 - IST_OFFSET_MS
+  );
+}
+
+/**
+ * Dashboard numbers. Open work (PLACED / in progress) is counted whenever the
+ * order was placed — it doesn't vanish at midnight. Finished orders are counted
+ * by when they finished (their timeline entry), not when they were placed, so
+ * "Completed today" includes an order placed last night and completed this morning.
+ */
+export async function getTodayOrderCounts(shopId: string): Promise<TodayStats> {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Not signed in");
+  const shopDoc = await adminDb().collection("shops").doc(shopId).get();
+  if (!shopDoc.exists || shopDoc.data()?.ownerId !== userId) {
+    throw new Error("You do not own this shop");
+  }
+
+  const dayStart = startOfTodayIST();
   const snap = await adminDb()
     .collection("orders")
     .where("shopId", "==", shopId)
-    .where("createdAt", ">=", startOfDay.getTime())
+    .orderBy("createdAt", "desc")
+    .limit(500)
     .get();
 
   const counts: Record<OrderStatus, number> = {
@@ -263,20 +413,92 @@ export async function getTodayOrderCounts(shopId: string): Promise<Record<OrderS
     REJECTED: 0,
     CANCELLED: 0,
   };
+  let revenueToday = 0;
+
   for (const doc of snap.docs) {
-    const status = doc.data().status as OrderStatus;
-    counts[status] = (counts[status] ?? 0) + 1;
+    const order = doc.data() as OrderDoc;
+    const isOpen = !["COMPLETED", "REJECTED", "CANCELLED"].includes(
+      order.status,
+    );
+    if (isOpen) {
+      counts[order.status] += 1;
+      continue;
+    }
+    const finishedAt =
+      [...(order.timeline ?? [])]
+        .reverse()
+        .find((t) => t.status === order.status)?.at ??
+      order.updatedAt ??
+      order.createdAt;
+    if (finishedAt < dayStart) continue;
+    counts[order.status] += 1;
+    if (order.status === "COMPLETED") revenueToday += order.itemTotal;
   }
-  return counts;
+  return { counts, revenueToday };
 }
 
-export async function listMyOrders(): Promise<OrderDoc[]> {
+/** Step 1.2: cursor pagination instead of one big fixed-size list. Page
+ *  size 20, cursor is the previous page's last `createdAt` (matching the
+ *  `orderBy` field) — pass the returned `nextCursor` back in to get the
+ *  next page, or `null` when there isn't one. */
+const ORDERS_PAGE_SIZE = 20;
+export interface OrdersPage {
+  orders: OrderDoc[];
+  nextCursor: number | null;
+}
+
+export async function listMyOrders(cursor?: number): Promise<OrdersPage> {
   const { userId } = await auth();
-  if (!userId) return [];
-  const snap = await adminDb()
+  if (!userId) return { orders: [], nextCursor: null };
+
+  let q = adminDb()
     .collection("orders")
     .where("buyerId", "==", userId)
     .orderBy("createdAt", "desc")
-    .get();
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<OrderDoc, "id">) }));
+    .limit(ORDERS_PAGE_SIZE);
+  if (cursor) q = q.startAfter(cursor);
+
+  const snap = await q.get();
+  const orders = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<OrderDoc, "id">),
+  }));
+  const nextCursor =
+    orders.length === ORDERS_PAGE_SIZE ? orders[orders.length - 1]!.createdAt : null;
+  return { orders, nextCursor };
+}
+
+/**
+ * The shop owner's orders, newest first, 20 at a time. Read through the
+ * server so the dashboard works without a client-side Firebase session
+ * (the live dashboard view uses a direct Firestore listener instead — see
+ * src/app/dashboard/orders/page.tsx — and calls this only as a fallback).
+ */
+export async function listShopOrders(
+  shopId: string,
+  cursor?: number,
+): Promise<ActionResult<OrdersPage>> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Not signed in" };
+
+  const shopDoc = await adminDb().collection("shops").doc(shopId).get();
+  if (!shopDoc.exists || shopDoc.data()?.ownerId !== userId) {
+    return { ok: false, error: "You do not own this shop" };
+  }
+
+  let q = adminDb()
+    .collection("orders")
+    .where("shopId", "==", shopId)
+    .orderBy("createdAt", "desc")
+    .limit(ORDERS_PAGE_SIZE);
+  if (cursor) q = q.startAfter(cursor);
+
+  const snap = await q.get();
+  const orders = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<OrderDoc, "id">),
+  }));
+  const nextCursor =
+    orders.length === ORDERS_PAGE_SIZE ? orders[orders.length - 1]!.createdAt : null;
+  return { ok: true, data: { orders, nextCursor } };
 }

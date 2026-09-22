@@ -1,0 +1,782 @@
+[
+  {
+    "shopType": "kirana",
+    "name": "Toned Milk",
+    "brand": "Amul",
+    "category": "Dairy",
+    "unit": "500 ml",
+    "price": 28,
+    "mrp": 30,
+    "stock": 40,
+    "imageUrl": "/inventory-samples/images/kirana-toned-milk-amul.svg",
+    "description": "Fresh pasteurised toned milk, 3% fat.",
+    "aliases": [
+      "doodh",
+      "dudh"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Salted Butter",
+    "brand": "Amul",
+    "category": "Dairy",
+    "unit": "100 g",
+    "price": 58,
+    "mrp": 62,
+    "stock": 25,
+    "imageUrl": "/inventory-samples/images/kirana-salted-butter-amul.svg",
+    "description": "Creamy table butter, ideal for parathas and toast.",
+    "aliases": [
+      "makhan"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Basmati Rice",
+    "brand": "India Gate",
+    "category": "Staples",
+    "unit": "1 kg",
+    "price": 110,
+    "mrp": 130,
+    "stock": 30,
+    "imageUrl": "/inventory-samples/images/kirana-basmati-rice-india-gate.svg",
+    "description": "Long-grain aged basmati with a rich aroma.",
+    "aliases": [
+      "chawal",
+      "chaval"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Whole Wheat Atta",
+    "brand": "Aashirvaad",
+    "category": "Staples",
+    "unit": "5 kg",
+    "price": 245,
+    "mrp": 270,
+    "stock": 20,
+    "imageUrl": "/inventory-samples/images/kirana-whole-wheat-atta-aashirvaad.svg",
+    "description": "Stone-ground whole wheat flour for soft rotis.",
+    "aliases": [
+      "atta",
+      "gehu ka atta"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Toor Dal",
+    "brand": "Tata Sampann",
+    "category": "Staples",
+    "unit": "1 kg",
+    "price": 165,
+    "mrp": 185,
+    "stock": 18,
+    "imageUrl": "/inventory-samples/images/kirana-toor-dal-tata-sampann.svg",
+    "description": "Unpolished protein-rich toor dal.",
+    "aliases": [
+      "dal",
+      "arhar dal",
+      "tuvar dal"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Parle-G Biscuits",
+    "brand": "Parle",
+    "category": "Snacks",
+    "unit": "1 pack",
+    "price": 10,
+    "mrp": 10,
+    "stock": 120,
+    "imageUrl": "/inventory-samples/images/kirana-parle-g-biscuits-parle.svg",
+    "description": "The classic glucose biscuit.",
+    "aliases": [
+      "biscuit",
+      "parle g"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Classic Salted Chips",
+    "brand": "Lay's",
+    "category": "Snacks",
+    "unit": "52 g",
+    "price": 20,
+    "mrp": 20,
+    "stock": 80,
+    "imageUrl": "/inventory-samples/images/kirana-classic-salted-chips-lay-s.svg",
+    "description": "Crispy potato chips, lightly salted.",
+    "aliases": [
+      "chips",
+      "namkeen"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Tea Powder",
+    "brand": "Tata Tea Gold",
+    "category": "Beverages",
+    "unit": "250 g",
+    "price": 135,
+    "mrp": 150,
+    "stock": 22,
+    "imageUrl": "/inventory-samples/images/kirana-tea-powder-tata-tea-gold.svg",
+    "description": "Rich, aromatic blend of Assam tea leaves.",
+    "aliases": [
+      "chai",
+      "chai patti"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Masala Soda",
+    "brand": "Thums Up",
+    "category": "Beverages",
+    "unit": "750 ml",
+    "price": 40,
+    "mrp": 40,
+    "stock": 36,
+    "imageUrl": "/inventory-samples/images/kirana-masala-soda-thums-up.svg",
+    "description": "Chilled cola, bold and fizzy.",
+    "aliases": [
+      "cold drink",
+      "thanda"
+    ]
+  },
+  {
+    "shopType": "kirana",
+    "name": "Bathing Soap",
+    "brand": "Dettol",
+    "category": "Household",
+    "unit": "125 g",
+    "price": 42,
+    "mrp": 48,
+    "stock": 60,
+    "imageUrl": "/inventory-samples/images/kirana-bathing-soap-dettol.svg",
+    "description": "Antibacterial soap for everyday protection.",
+    "aliases": [
+      "sabun",
+      "nahane ka sabun"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Paracetamol 500 mg",
+    "brand": "Crocin",
+    "category": "Pain Relief",
+    "unit": "15 tablets",
+    "price": 32,
+    "mrp": 35,
+    "stock": 90,
+    "imageUrl": "/inventory-samples/images/pharmacy-paracetamol-500-mg-crocin.svg",
+    "description": "Relief from fever and mild to moderate pain.",
+    "aliases": [
+      "bukhar ki dawai",
+      "crocin"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Pain Relief Spray",
+    "brand": "Volini",
+    "category": "Pain Relief",
+    "unit": "40 g",
+    "price": 145,
+    "mrp": 165,
+    "stock": 24,
+    "imageUrl": "/inventory-samples/images/pharmacy-pain-relief-spray-volini.svg",
+    "description": "Fast-acting spray for muscle and joint pain.",
+    "aliases": [
+      "dard ki spray"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Adhesive Bandages",
+    "brand": "Band-Aid",
+    "category": "First Aid",
+    "unit": "20 strips",
+    "price": 48,
+    "mrp": 55,
+    "stock": 70,
+    "imageUrl": "/inventory-samples/images/pharmacy-adhesive-bandages-band-aid.svg",
+    "description": "Flexible, breathable bandages for minor cuts.",
+    "aliases": [
+      "band aid",
+      "patti"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Antiseptic Liquid",
+    "brand": "Dettol",
+    "category": "First Aid",
+    "unit": "250 ml",
+    "price": 98,
+    "mrp": 110,
+    "stock": 35,
+    "imageUrl": "/inventory-samples/images/pharmacy-antiseptic-liquid-dettol.svg",
+    "description": "Kills 99.9% germs; for cuts, wounds and laundry.",
+    "aliases": [
+      "dettol"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Vitamin C Tablets",
+    "brand": "Limcee",
+    "category": "Vitamins",
+    "unit": "15 chewables",
+    "price": 25,
+    "mrp": 25,
+    "stock": 55,
+    "imageUrl": "/inventory-samples/images/pharmacy-vitamin-c-tablets-limcee.svg",
+    "description": "Orange-flavoured chewable vitamin C.",
+    "aliases": [
+      "limcee",
+      "vitamin c"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Digital Thermometer",
+    "brand": "Omron",
+    "category": "Devices",
+    "unit": "1 piece",
+    "price": 199,
+    "mrp": 260,
+    "stock": 15,
+    "imageUrl": "/inventory-samples/images/pharmacy-digital-thermometer-omron.svg",
+    "description": "Quick, accurate digital thermometer.",
+    "aliases": [
+      "thermometer",
+      "bukhar naapne ka"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Face Masks",
+    "brand": "Nivea",
+    "category": "Personal Care",
+    "unit": "10 pieces",
+    "price": 60,
+    "mrp": 80,
+    "stock": 45,
+    "imageUrl": "/inventory-samples/images/pharmacy-face-masks-nivea.svg",
+    "description": "3-ply disposable masks with nose clip.",
+    "aliases": [
+      "mask"
+    ]
+  },
+  {
+    "shopType": "pharmacy",
+    "name": "Hand Sanitizer",
+    "brand": "Himalaya",
+    "category": "Personal Care",
+    "unit": "100 ml",
+    "price": 55,
+    "mrp": 65,
+    "stock": 50,
+    "imageUrl": "/inventory-samples/images/pharmacy-hand-sanitizer-himalaya.svg",
+    "description": "Alcohol-based sanitizer with aloe vera.",
+    "aliases": [
+      "sanitizer"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "Ball Pens (Blue)",
+    "brand": "Reynolds",
+    "category": "Writing",
+    "unit": "10 pens",
+    "price": 80,
+    "mrp": 100,
+    "stock": 60,
+    "imageUrl": "/inventory-samples/images/stationery-ball-pens-blue-reynolds.svg",
+    "description": "Smooth-writing ball pens for exams and office.",
+    "aliases": [
+      "pen",
+      "kalam"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "HB Pencils",
+    "brand": "Apsara",
+    "category": "Writing",
+    "unit": "10 pencils",
+    "price": 50,
+    "mrp": 60,
+    "stock": 80,
+    "imageUrl": "/inventory-samples/images/stationery-hb-pencils-apsara.svg",
+    "description": "Dark, smooth pencils with easy-erase lead.",
+    "aliases": [
+      "pencil"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "Ruled Notebook",
+    "brand": "Classmate",
+    "category": "Paper",
+    "unit": "172 pages",
+    "price": 60,
+    "mrp": 70,
+    "stock": 100,
+    "imageUrl": "/inventory-samples/images/stationery-ruled-notebook-classmate.svg",
+    "description": "Long notebook with 70 GSM ruled pages.",
+    "aliases": [
+      "copy",
+      "kaapi",
+      "notebook"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "A4 Copier Paper",
+    "brand": "JK Paper",
+    "category": "Paper",
+    "unit": "500 sheets",
+    "price": 320,
+    "mrp": 360,
+    "stock": 25,
+    "imageUrl": "/inventory-samples/images/stationery-a4-copier-paper-jk-paper.svg",
+    "description": "75 GSM bright white paper for printers.",
+    "aliases": [
+      "a4 sheet",
+      "kagaz"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "Stapler with Pins",
+    "brand": "Kangaro",
+    "category": "Office",
+    "unit": "1 set",
+    "price": 95,
+    "mrp": 120,
+    "stock": 30,
+    "imageUrl": "/inventory-samples/images/stationery-stapler-with-pins-kangaro.svg",
+    "description": "Compact stapler with 1000 staple pins.",
+    "aliases": []
+  },
+  {
+    "shopType": "stationery",
+    "name": "Wax Crayons",
+    "brand": "Camlin",
+    "category": "Art",
+    "unit": "24 shades",
+    "price": 110,
+    "mrp": 130,
+    "stock": 40,
+    "imageUrl": "/inventory-samples/images/stationery-wax-crayons-camlin.svg",
+    "description": "Non-toxic wax crayons for kids.",
+    "aliases": [
+      "crayons"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "Geometry Box",
+    "brand": "Camlin",
+    "category": "Office",
+    "unit": "1 box",
+    "price": 140,
+    "mrp": 165,
+    "stock": 28,
+    "imageUrl": "/inventory-samples/images/stationery-geometry-box-camlin.svg",
+    "description": "Complete geometry set with compass and divider.",
+    "aliases": [
+      "geometry box"
+    ]
+  },
+  {
+    "shopType": "stationery",
+    "name": "Poster Colours",
+    "brand": "Camel",
+    "category": "Art",
+    "unit": "12 tubes",
+    "price": 120,
+    "mrp": 145,
+    "stock": 22,
+    "imageUrl": "/inventory-samples/images/stationery-poster-colours-camel.svg",
+    "description": "Bright, opaque poster colours.",
+    "aliases": [
+      "paint",
+      "rang"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Sandwich Bread",
+    "brand": "Britannia",
+    "category": "Bread",
+    "unit": "400 g",
+    "price": 45,
+    "mrp": 50,
+    "stock": 30,
+    "imageUrl": "/inventory-samples/images/bakery-sandwich-bread-britannia.svg",
+    "description": "Soft, fresh sliced white bread.",
+    "aliases": [
+      "bread",
+      "double roti"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Multigrain Loaf",
+    "brand": "Harvest Gold",
+    "category": "Bread",
+    "unit": "350 g",
+    "price": 55,
+    "mrp": 60,
+    "stock": 20,
+    "imageUrl": "/inventory-samples/images/bakery-multigrain-loaf-harvest-gold.svg",
+    "description": "Fibre-rich multigrain bread.",
+    "aliases": [
+      "multigrain bread"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Chocolate Cake",
+    "brand": "Local Bakery",
+    "category": "Cakes",
+    "unit": "500 g",
+    "price": 450,
+    "mrp": 500,
+    "stock": 6,
+    "imageUrl": "/inventory-samples/images/bakery-chocolate-cake-local-bakery.svg",
+    "description": "Moist chocolate sponge with ganache frosting.",
+    "aliases": [
+      "cake"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Vanilla Cupcakes",
+    "brand": "Local Bakery",
+    "category": "Cakes",
+    "unit": "4 pieces",
+    "price": 160,
+    "mrp": 180,
+    "stock": 14,
+    "imageUrl": "/inventory-samples/images/bakery-vanilla-cupcakes-local-bakery.svg",
+    "description": "Fluffy cupcakes with buttercream topping.",
+    "aliases": [
+      "cupcake"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Butter Croissant",
+    "brand": "Local Bakery",
+    "category": "Pastries",
+    "unit": "1 piece",
+    "price": 55,
+    "mrp": 60,
+    "stock": 18,
+    "imageUrl": "/inventory-samples/images/bakery-butter-croissant-local-bakery.svg",
+    "description": "Flaky, buttery, baked every morning.",
+    "aliases": [
+      "croissant"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Glazed Donut",
+    "brand": "Local Bakery",
+    "category": "Pastries",
+    "unit": "1 piece",
+    "price": 45,
+    "mrp": 50,
+    "stock": 24,
+    "imageUrl": "/inventory-samples/images/bakery-glazed-donut-local-bakery.svg",
+    "description": "Soft ring donut with sugar glaze.",
+    "aliases": [
+      "donut",
+      "doughnut"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Choco Chip Cookies",
+    "brand": "Local Bakery",
+    "category": "Cookies",
+    "unit": "200 g",
+    "price": 110,
+    "mrp": 125,
+    "stock": 26,
+    "imageUrl": "/inventory-samples/images/bakery-choco-chip-cookies-local-bakery.svg",
+    "description": "Crunchy cookies loaded with chocolate chips.",
+    "aliases": [
+      "cookies",
+      "biscuit"
+    ]
+  },
+  {
+    "shopType": "bakery",
+    "name": "Salted Pretzels",
+    "brand": "Local Bakery",
+    "category": "Cookies",
+    "unit": "150 g",
+    "price": 75,
+    "mrp": 85,
+    "stock": 17,
+    "imageUrl": "/inventory-samples/images/bakery-salted-pretzels-local-bakery.svg",
+    "description": "Baked pretzel twists with coarse salt.",
+    "aliases": [
+      "pretzel"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "USB-C Fast Charger",
+    "brand": "Mi",
+    "category": "Accessories",
+    "unit": "20 W",
+    "price": 599,
+    "mrp": 899,
+    "stock": 25,
+    "imageUrl": "/inventory-samples/images/electronics-usb-c-fast-charger-mi.svg",
+    "description": "20 W fast charger with USB-C output.",
+    "aliases": [
+      "charger"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "Wired Earphones",
+    "brand": "boAt",
+    "category": "Accessories",
+    "unit": "1 piece",
+    "price": 349,
+    "mrp": 599,
+    "stock": 40,
+    "imageUrl": "/inventory-samples/images/electronics-wired-earphones-boat.svg",
+    "description": "In-ear earphones with mic and deep bass.",
+    "aliases": [
+      "earphones",
+      "headphones"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "Power Bank",
+    "brand": "Ambrane",
+    "category": "Accessories",
+    "unit": "10000 mAh",
+    "price": 999,
+    "mrp": 1499,
+    "stock": 18,
+    "imageUrl": "/inventory-samples/images/electronics-power-bank-ambrane.svg",
+    "description": "Compact 10000 mAh power bank, dual output.",
+    "aliases": [
+      "power bank"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "LED Bulb 9 W",
+    "brand": "Philips",
+    "category": "Lighting",
+    "unit": "1 piece",
+    "price": 89,
+    "mrp": 110,
+    "stock": 60,
+    "imageUrl": "/inventory-samples/images/electronics-led-bulb-9-w-philips.svg",
+    "description": "Energy-saving cool daylight LED bulb.",
+    "aliases": [
+      "bulb",
+      "led bulb"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "Rechargeable Torch",
+    "brand": "Eveready",
+    "category": "Lighting",
+    "unit": "1 piece",
+    "price": 299,
+    "mrp": 399,
+    "stock": 20,
+    "imageUrl": "/inventory-samples/images/electronics-rechargeable-torch-eveready.svg",
+    "description": "Bright LED torch with USB charging.",
+    "aliases": [
+      "torch"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "AA Batteries",
+    "brand": "Duracell",
+    "category": "Batteries",
+    "unit": "4 pack",
+    "price": 140,
+    "mrp": 160,
+    "stock": 55,
+    "imageUrl": "/inventory-samples/images/electronics-aa-batteries-duracell.svg",
+    "description": "Long-lasting alkaline AA cells.",
+    "aliases": [
+      "battery",
+      "cell"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "Micro-USB Cable",
+    "brand": "Portronics",
+    "category": "Cables",
+    "unit": "1 m",
+    "price": 149,
+    "mrp": 249,
+    "stock": 35,
+    "imageUrl": "/inventory-samples/images/electronics-micro-usb-cable-portronics.svg",
+    "description": "Durable braided sync and charge cable.",
+    "aliases": [
+      "cable",
+      "charging cable"
+    ]
+  },
+  {
+    "shopType": "electronics",
+    "name": "Wireless Mouse",
+    "brand": "Logitech",
+    "category": "Accessories",
+    "unit": "1 piece",
+    "price": 549,
+    "mrp": 795,
+    "stock": 12,
+    "imageUrl": "/inventory-samples/images/electronics-wireless-mouse-logitech.svg",
+    "description": "Silent-click wireless mouse with USB receiver.",
+    "aliases": [
+      "mouse"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Scented Candle",
+    "brand": "Home Decor",
+    "category": "Home",
+    "unit": "1 piece",
+    "price": 199,
+    "mrp": 249,
+    "stock": 15,
+    "imageUrl": "/inventory-samples/images/other-scented-candle-home-decor.svg",
+    "description": "Hand-poured scented candle, 30 hour burn.",
+    "aliases": [
+      "candle",
+      "mombatti"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Small Indoor Plant",
+    "brand": "Green Nursery",
+    "category": "Home",
+    "unit": "1 pot",
+    "price": 249,
+    "mrp": 299,
+    "stock": 12,
+    "imageUrl": "/inventory-samples/images/other-small-indoor-plant-green-nursery.svg",
+    "description": "Low-maintenance plant in a ceramic pot.",
+    "aliases": [
+      "plant",
+      "paudha"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Gift Wrap Set",
+    "brand": "Party Time",
+    "category": "Gifts",
+    "unit": "5 sheets",
+    "price": 99,
+    "mrp": 120,
+    "stock": 30,
+    "imageUrl": "/inventory-samples/images/other-gift-wrap-set-party-time.svg",
+    "description": "Assorted wrapping sheets with ribbon.",
+    "aliases": [
+      "gift wrap"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Party Balloons",
+    "brand": "Party Time",
+    "category": "Gifts",
+    "unit": "25 pieces",
+    "price": 70,
+    "mrp": 90,
+    "stock": 45,
+    "imageUrl": "/inventory-samples/images/other-party-balloons-party-time.svg",
+    "description": "Multicolour latex balloons.",
+    "aliases": [
+      "balloons",
+      "gubbare"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Steel Mixing Bowl",
+    "brand": "Prestige",
+    "category": "Kitchen",
+    "unit": "1 piece",
+    "price": 175,
+    "mrp": 210,
+    "stock": 22,
+    "imageUrl": "/inventory-samples/images/other-steel-mixing-bowl-prestige.svg",
+    "description": "Stainless-steel mixing bowl with lid.",
+    "aliases": [
+      "katora",
+      "bowl"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Dinner Plates",
+    "brand": "Cello",
+    "category": "Kitchen",
+    "unit": "6 pieces",
+    "price": 399,
+    "mrp": 499,
+    "stock": 14,
+    "imageUrl": "/inventory-samples/images/other-dinner-plates-cello.svg",
+    "description": "Break-resistant dinner plates, set of 6.",
+    "aliases": [
+      "thali",
+      "plates"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Soft Teddy Bear",
+    "brand": "Funzoo",
+    "category": "Toys",
+    "unit": "1 piece",
+    "price": 349,
+    "mrp": 449,
+    "stock": 10,
+    "imageUrl": "/inventory-samples/images/other-soft-teddy-bear-funzoo.svg",
+    "description": "Plush teddy bear, 30 cm.",
+    "aliases": [
+      "teddy bear",
+      "soft toy"
+    ]
+  },
+  {
+    "shopType": "other",
+    "name": "Jigsaw Puzzle",
+    "brand": "Funskool",
+    "category": "Toys",
+    "unit": "100 pieces",
+    "price": 199,
+    "mrp": 249,
+    "stock": 16,
+    "imageUrl": "/inventory-samples/images/other-jigsaw-puzzle-funskool.svg",
+    "description": "100-piece jigsaw puzzle for ages 5+.",
+    "aliases": [
+      "puzzle"
+    ]
+  }
+]

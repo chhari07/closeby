@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -28,12 +28,13 @@ function AlertDialogPortal({
   )
 }
 
+// Radix called this part "Overlay"; Base UI calls it "Backdrop".
 function AlertDialogOverlay({
   className,
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Backdrop>) {
   return (
-    <AlertDialogPrimitive.Overlay
+    <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
       className={cn(
         "fixed inset-0 z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
@@ -44,17 +45,18 @@ function AlertDialogOverlay({
   )
 }
 
+// Radix called this part "Content"; Base UI calls it "Popup".
 function AlertDialogContent({
   className,
   size = "default",
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Popup> & {
   size?: "default" | "sm"
 }) {
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
-      <AlertDialogPrimitive.Content
+      <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         data-size={size}
         className={cn(
@@ -147,21 +149,24 @@ function AlertDialogDescription({
   )
 }
 
+// Base UI's AlertDialog has only Close, not Radix's separate Action/Cancel
+// primitives — Action and Cancel are both "a button that closes the
+// dialog", just styled differently and (for Action) carrying the caller's
+// onClick. Close composes any onClick you give it with its own "now close"
+// behavior, so this preserves the original behavior exactly.
 function AlertDialogAction({
   className,
   variant = "default",
   size = "default",
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Action> &
-  Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
+}: Omit<React.ComponentProps<typeof AlertDialogPrimitive.Close>, "className"> &
+  Pick<React.ComponentProps<typeof Button>, "variant" | "size" | "className">) {
   return (
-    <Button variant={variant} size={size} asChild>
-      <AlertDialogPrimitive.Action
-        data-slot="alert-dialog-action"
-        className={cn(className)}
-        {...props}
-      />
-    </Button>
+    <AlertDialogPrimitive.Close
+      data-slot="alert-dialog-action"
+      render={<Button variant={variant} size={size} className={className} />}
+      {...props}
+    />
   )
 }
 
@@ -170,16 +175,14 @@ function AlertDialogCancel({
   variant = "outline",
   size = "default",
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Cancel> &
-  Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
+}: Omit<React.ComponentProps<typeof AlertDialogPrimitive.Close>, "className"> &
+  Pick<React.ComponentProps<typeof Button>, "variant" | "size" | "className">) {
   return (
-    <Button variant={variant} size={size} asChild>
-      <AlertDialogPrimitive.Cancel
-        data-slot="alert-dialog-cancel"
-        className={cn(className)}
-        {...props}
-      />
-    </Button>
+    <AlertDialogPrimitive.Close
+      data-slot="alert-dialog-cancel"
+      render={<Button variant={variant} size={size} className={className} />}
+      {...props}
+    />
   )
 }
 

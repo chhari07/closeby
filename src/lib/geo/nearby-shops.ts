@@ -3,8 +3,15 @@ import { geohashQueryBounds, distanceBetween } from "geofire-common";
 import { adminDb } from "@/lib/firebase/admin";
 import type { GeoPoint, NearbyShopResult, ShopDoc } from "@/types";
 
-/** Safety cap per geohash bound so a runaway bound can't blow up a request. */
+/** Page size per geohash-bound query. */
 const MAX_DOCS_PER_BOUND = 300;
+/** Safety cap on how many pages we'll page through a single bound —
+ *  MAX_PAGES_PER_BOUND * MAX_DOCS_PER_BOUND shops in one geohash cell is
+ *  far more than a hyperlocal search should ever see; this just stops a
+ *  single bound from paging forever if something is very wrong. */
+const MAX_PAGES_PER_BOUND = 5;
+/** Cap for the no-radius-limit query (all live shops, nearest first). */
+const MAX_UNLIMITED_DOCS = 1000;
 
 function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc {
   return {
@@ -22,6 +29,43 @@ function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc 
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
   };
+}
+
+/**
+ * Step 1.4: a geohash bound with more than MAX_DOCS_PER_BOUND shops in it
+ * used to silently drop everything past the cap — a busy area could hide
+ * real, live shops from search with no sign anything was cut. This pages
+ * through the bound with `startAfter` until it's exhausted (a page comes
+ * back smaller than the page size) or the safety cap is hit.
+ */
+async function queryBoundExhaustive(
+  start: string,
+  end: string,
+): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
+  const docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+
+  for (let page = 0; page < MAX_PAGES_PER_BOUND; page++) {
+    let q = adminDb()
+      .collection("shops")
+      .orderBy("location.geohash")
+      .startAt(start)
+      .endAt(end)
+      .limit(MAX_DOCS_PER_BOUND);
+    if (cursor) {
+      q = adminDb()
+        .collection("shops")
+        .orderBy("location.geohash")
+        .startAfter(cursor)
+        .endAt(end)
+        .limit(MAX_DOCS_PER_BOUND);
+    }
+    const snap = await q.get();
+    docs.push(...snap.docs);
+    if (snap.size < MAX_DOCS_PER_BOUND) break; // bound is exhausted
+    cursor = snap.docs[snap.docs.length - 1];
+  }
+  return docs;
 }
 
 function hasValidLocation(shop: ShopDoc): boolean {
@@ -53,29 +97,35 @@ export async function getNearbyShops(
     !Number.isFinite(origin.lat) ||
     !Number.isFinite(origin.lng) ||
     !Number.isFinite(radiusInM) ||
-    radiusInM <= 0
+    radiusInM < 0
   ) {
     return [];
   }
 
   const center: [number, number] = [origin.lat, origin.lng];
-  const bounds = geohashQueryBounds(center, radiusInM);
+  // radiusInM === 0 (ANY_DISTANCE): no limit — read every live shop instead of
+  // geohash bounds, then rank purely by distance.
+  const unlimited = radiusInM === 0;
 
-  const snapshots = await Promise.all(
-    bounds.map(([start, end]) =>
-      adminDb()
-        .collection("shops")
-        .orderBy("location.geohash")
-        .startAt(start)
-        .endAt(end)
-        .limit(MAX_DOCS_PER_BOUND)
-        .get()
-    )
-  );
+  const docBatches = unlimited
+    ? [
+        (
+          await adminDb()
+            .collection("shops")
+            .where("status", "==", "live")
+            .limit(MAX_UNLIMITED_DOCS)
+            .get()
+        ).docs,
+      ]
+    : await Promise.all(
+        geohashQueryBounds(center, radiusInM).map(([start, end]) =>
+          queryBoundExhaustive(start, end)
+        )
+      );
 
   const seen = new Map<string, ShopDoc>();
-  for (const snap of snapshots) {
-    for (const doc of snap.docs) {
+  for (const docs of docBatches) {
+    for (const doc of docs) {
       if (seen.has(doc.id)) continue;
       seen.set(doc.id, shopFromDoc(doc.id, doc.data()));
     }
@@ -89,7 +139,7 @@ export async function getNearbyShops(
     const distanceInM =
       distanceBetween(center, [shop.location!.lat, shop.location!.lng]) * 1000;
 
-    if (distanceInM <= radiusInM) {
+    if (unlimited || distanceInM <= radiusInM) {
       results.push({ shop, distanceInM });
     }
   }

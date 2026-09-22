@@ -1,28 +1,26 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
+import { requireUserId as requireAuthedUserId, assertShopOwnership } from "@/lib/auth/guards";
 import {
   productSchema,
   productImportItemSchema,
+  productImageSchema,
   type ProductInput,
 } from "@/lib/validation/product";
 import { rupeesToPaise } from "@/lib/money";
+import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { ActionResult } from "./types";
 import type { ProductDoc } from "@/types";
 
+/** Auth + rate limit, same as before — the ownership check (Step 1.9) now
+ *  lives in src/lib/auth/guards.ts, shared with src/actions/shops.ts. */
 async function requireUserId(): Promise<string> {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Not signed in");
+  const userId = await requireAuthedUserId();
+  const limited = rateLimit("productWrite", userId);
+  if (!limited.ok) throw new Error(rateLimitMessage(limited.retryAfterSec));
   return userId;
-}
-
-async function assertOwnsShop(userId: string, shopId: string) {
-  const doc = await adminDb().collection("shops").doc(shopId).get();
-  if (!doc.exists || doc.data()?.ownerId !== userId) {
-    throw new Error("You do not own this shop");
-  }
 }
 
 export async function getShopProducts(shopId: string): Promise<ProductDoc[]> {
@@ -31,6 +29,32 @@ export async function getShopProducts(shopId: string): Promise<ProductDoc[]> {
     .doc(shopId)
     .collection("products")
     .orderBy("updatedAt", "desc")
+    .get();
+  return snap.docs.map((d) => ({ id: d.id, shopId, ...(d.data() as Omit<ProductDoc, "id" | "shopId">) }));
+}
+
+/** Stock at or below this counts as "low" for the dashboard warning. */
+const LOW_STOCK_THRESHOLD = 3;
+
+/**
+ * Step 1.3's "lowStockCount, don't scan the whole catalog" — a bounded,
+ * indexed query instead of a stored counter. A stored counter has to be
+ * kept in sync by hand at every stock-mutating call site (add, edit,
+ * import, bulk toggle, an order reserving/returning stock); a `where`
+ * query on `stock` can't drift out of sync the way a manual counter can,
+ * and it's just as cheap: one bounded read, not the whole catalog.
+ */
+export async function getLowStockProducts(
+  shopId: string,
+  max = 20,
+): Promise<ProductDoc[]> {
+  const snap = await adminDb()
+    .collection("shops")
+    .doc(shopId)
+    .collection("products")
+    .where("stock", "<=", LOW_STOCK_THRESHOLD)
+    .orderBy("stock", "asc")
+    .limit(max)
     .get();
   return snap.docs.map((d) => ({ id: d.id, shopId, ...(d.data() as Omit<ProductDoc, "id" | "shopId">) }));
 }
@@ -45,7 +69,7 @@ export async function bulkSetInStock(
   inStock: boolean
 ): Promise<ActionResult> {
   const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await assertShopOwnership(userId, shopId);
 
   const col = adminDb().collection("shops").doc(shopId).collection("products");
   const batch = adminDb().batch();
@@ -74,13 +98,13 @@ export async function addProduct(
   input: ProductInput
 ): Promise<ActionResult<{ productId: string }>> {
   const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await assertShopOwnership(userId, shopId);
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
   const shopRef = adminDb().collection("shops").doc(shopId);
   const ref = shopRef.collection("products").doc();
-  const { name, price, unit, category, stock, imageUrl } = parsed.data;
+  const { name, price, unit, category, stock, imageUrl, brand, description, mrp, aliases } = parsed.data;
 
   await adminDb().runTransaction(async (tx) => {
     tx.set(ref, {
@@ -91,6 +115,11 @@ export async function addProduct(
       stock,
       inStock: stock > 0,
       imageUrl: imageUrl ?? null,
+      // Firestore rejects undefined, so optional fields are only written when set.
+      ...(brand ? { brand } : {}),
+      ...(description ? { description } : {}),
+      ...(mrp ? { mrp } : {}),
+      ...(aliases?.length ? { aliases } : {}),
       updatedAt: Date.now(),
     });
     tx.update(shopRef, { itemCount: FieldValue.increment(1), updatedAt: Date.now() });
@@ -115,10 +144,12 @@ export async function bulkImportProducts(
   items: unknown
 ): Promise<ActionResult<BulkImportResult>> {
   const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  const importLimit = rateLimit("productImport", userId);
+  if (!importLimit.ok) return { ok: false, error: rateLimitMessage(importLimit.retryAfterSec) };
+  await assertShopOwnership(userId, shopId);
 
   if (!Array.isArray(items)) {
-    return { ok: false, error: "The file must contain a JSON array of products" };
+    return { ok: false, error: "The file must contain a list of products" };
   }
   if (items.length === 0) {
     return { ok: false, error: "The file has no products in it" };
@@ -152,7 +183,11 @@ export async function bulkImportProducts(
         category: parsed.data.category,
         stock: parsed.data.stock,
         inStock: parsed.data.stock > 0,
-        imageUrl: null,
+        imageUrl: parsed.data.imageUrl ?? null,
+        ...(parsed.data.brand ? { brand: parsed.data.brand } : {}),
+        ...(parsed.data.description ? { description: parsed.data.description } : {}),
+        ...(parsed.data.mrp ? { mrp: rupeesToPaise(parsed.data.mrp) } : {}),
+        ...(parsed.data.aliases?.length ? { aliases: parsed.data.aliases } : {}),
         updatedAt: now,
       },
     });
@@ -188,12 +223,19 @@ export async function updateProduct(
   input: Partial<ProductInput>
 ): Promise<ActionResult> {
   const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await assertShopOwnership(userId, shopId);
 
   const parsed = productSchema.partial().safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
-  const update: Record<string, unknown> = { ...parsed.data, updatedAt: Date.now() };
+  // zod keeps `key: undefined` entries for optional fields the caller passed
+  // as undefined (e.g. clearing an optional field in the form) — Firestore's
+  // Admin SDK throws on an explicit `undefined` value, so drop those keys
+  // rather than send them.
+  const update: Record<string, unknown> = { updatedAt: Date.now() };
+  for (const [key, value] of Object.entries(parsed.data)) {
+    if (value !== undefined) update[key] = value;
+  }
   if (parsed.data.stock !== undefined) {
     update.inStock = parsed.data.stock > 0;
   }
@@ -217,7 +259,7 @@ export async function setProductStock(
 
 export async function deleteProduct(shopId: string, productId: string): Promise<ActionResult> {
   const userId = await requireUserId();
-  await assertOwnsShop(userId, shopId);
+  await assertShopOwnership(userId, shopId);
 
   const shopRef = adminDb().collection("shops").doc(shopId);
   const productRef = shopRef.collection("products").doc(productId);
@@ -229,5 +271,27 @@ export async function deleteProduct(shopId: string, productId: string): Promise<
     tx.update(shopRef, { itemCount: FieldValue.increment(-1), updatedAt: Date.now() });
   });
 
+  return { ok: true };
+}
+
+/** Attach already-uploaded image URLs to products (used after a bulk import with photos). */
+export async function bulkSetProductImages(
+  shopId: string,
+  items: { productId: string; imageUrl: string }[]
+): Promise<ActionResult> {
+  const userId = await requireUserId();
+  await assertShopOwnership(userId, shopId);
+
+  const col = adminDb().collection("shops").doc(shopId).collection("products");
+  const now = Date.now();
+  for (let i = 0; i < items.length; i += 400) {
+    const batch = adminDb().batch();
+    for (const { productId, imageUrl } of items.slice(i, i + 400)) {
+      const url = productImageSchema.safeParse(imageUrl);
+      if (!url.success) continue;
+      batch.update(col.doc(productId), { imageUrl: url.data, updatedAt: now });
+    }
+    await batch.commit();
+  }
   return { ok: true };
 }

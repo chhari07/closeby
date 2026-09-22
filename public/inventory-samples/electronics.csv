@@ -1,0 +1,34 @@
+name,brand,category,unit,price,mrp,stock,imageUrl,description,aliases
+USB-C Fast Charger,Mi,Chargers,20 W,599,899,25,/inventory-samples/images/electronics-usb-c-fast-charger-mi.svg,20 W fast charger with USB-C output.,charger
+Dual Port Car Charger,Ambrane,Chargers,30 W,449,699,18,/inventory-samples/images/electronics-dual-port-car-charger-ambrane.svg,Dual USB car charger with fast charging.,car charger
+Power Bank,Ambrane,Power Banks,10000 mAh,999,1499,18,/inventory-samples/images/electronics-power-bank-ambrane.svg,"Compact 10000 mAh power bank, dual output.",power bank
+Power Bank Slim,Mi,Power Banks,20000 mAh,1799,2499,10,/inventory-samples/images/electronics-power-bank-slim-mi.svg,"20000 mAh slim power bank, 18 W fast charge.",power bank
+Wired Earphones,boAt,Audio,1 piece,349,599,40,/inventory-samples/images/electronics-wired-earphones-boat.svg,In-ear earphones with mic and deep bass.,earphones; headphones
+Bluetooth Neckband,boAt,Audio,1 piece,999,1799,22,/inventory-samples/images/electronics-bluetooth-neckband-boat.svg,"Wireless neckband, 30-hour playback.",neckband
+True Wireless Earbuds,Realme,Audio,1 pair,1499,2499,15,/inventory-samples/images/electronics-true-wireless-earbuds-realme.svg,Earbuds with ENC mic and charging case.,earbuds; tws
+Bluetooth Speaker,JBL,Audio,1 piece,1999,2999,9,/inventory-samples/images/electronics-bluetooth-speaker-jbl.svg,Portable waterproof Bluetooth speaker.,speaker
+Collar Microphone,Boya,Audio,1 piece,599,999,14,/inventory-samples/images/electronics-collar-microphone-boya.svg,Clip-on microphone for phones and cameras.,mic; microphone
+LED Bulb 9 W,Philips,Lighting,1 piece,89,110,60,/inventory-samples/images/electronics-led-bulb-9-w-philips.svg,Energy-saving cool daylight LED bulb.,bulb; led bulb
+Smart Wi-Fi Bulb,Wipro,Lighting,1 piece,549,799,20,/inventory-samples/images/electronics-smart-wi-fi-bulb-wipro.svg,"Colour Wi-Fi smart bulb, works with Alexa.",smart bulb
+Rechargeable Torch,Eveready,Lighting,1 piece,299,399,20,/inventory-samples/images/electronics-rechargeable-torch-eveready.svg,Bright LED torch with USB charging.,torch
+LED Strip Lights,Syska,Lighting,5 m,449,699,16,/inventory-samples/images/electronics-led-strip-lights-syska.svg,RGB LED strip with remote control.,strip lights
+AA Batteries,Duracell,Batteries,4 pack,140,160,55,/inventory-samples/images/electronics-aa-batteries-duracell.svg,Long-lasting alkaline AA cells.,battery; cell
+AAA Batteries,Duracell,Batteries,4 pack,130,150,50,/inventory-samples/images/electronics-aaa-batteries-duracell.svg,Long-lasting alkaline AAA cells.,battery; cell
+Coin Cell CR2032,Panasonic,Batteries,2 pack,90,120,45,/inventory-samples/images/electronics-coin-cell-cr2032-panasonic.svg,3 V lithium coin cells.,button cell
+Micro-USB Cable,Portronics,Cables,1 m,149,249,35,/inventory-samples/images/electronics-micro-usb-cable-portronics.svg,Durable braided sync and charge cable.,cable; charging cable
+USB-C Cable,Ambrane,Cables,1.5 m,199,349,40,/inventory-samples/images/electronics-usb-c-cable-ambrane.svg,Braided USB-C fast charging cable.,cable; type c cable
+Lightning Cable,Belkin,Cables,1 m,899,1299,12,/inventory-samples/images/electronics-lightning-cable-belkin.svg,MFi certified Lightning cable.,iphone cable
+HDMI Cable,Amazon Basics,Cables,1.5 m,249,399,22,/inventory-samples/images/electronics-hdmi-cable-amazon-basics.svg,High-speed HDMI 2.0 cable.,hdmi
+4-Socket Extension Board,Havells,Electricals,2 m,499,699,17,/inventory-samples/images/electronics-4-socket-extension-board-havells.svg,Surge-protected extension board with switch.,extension board; tapri
+Universal Travel Adapter,Belkin,Electricals,1 piece,699,999,11,/inventory-samples/images/electronics-universal-travel-adapter-belkin.svg,Worldwide plug adapter with USB port.,travel adapter
+Wireless Mouse,Logitech,Computer Accessories,1 piece,549,795,12,/inventory-samples/images/electronics-wireless-mouse-logitech.svg,Silent-click wireless mouse with USB receiver.,mouse
+Wireless Keyboard,Logitech,Computer Accessories,1 piece,1199,1699,8,/inventory-samples/images/electronics-wireless-keyboard-logitech.svg,"Compact wireless keyboard, 1-year battery.",keyboard
+Pen Drive 64 GB,SanDisk,Storage,64 GB,549,799,30,/inventory-samples/images/electronics-pen-drive-64-gb-sandisk.svg,"USB 3.0 flash drive, 64 GB.",pendrive; usb drive
+Memory Card 128 GB,SanDisk,Storage,128 GB,899,1399,20,/inventory-samples/images/electronics-memory-card-128-gb-sandisk.svg,"microSD card, Class 10, 128 GB.",memory card; sd card
+Laptop Stand,Portronics,Computer Accessories,1 piece,799,1299,10,/inventory-samples/images/electronics-laptop-stand-portronics.svg,Adjustable foldable aluminium laptop stand.,laptop stand
+Phone Tempered Glass,Spigen,Mobile Accessories,1 piece,199,399,50,/inventory-samples/images/electronics-phone-tempered-glass-spigen.svg,9H tempered glass screen protector.,tempered glass; screen guard
+Phone Back Cover,Ringke,Mobile Accessories,1 piece,299,499,35,/inventory-samples/images/electronics-phone-back-cover-ringke.svg,Shockproof transparent phone case.,cover; phone case
+Selfie Stick Tripod,Fotopro,Mobile Accessories,1 piece,649,999,13,/inventory-samples/images/electronics-selfie-stick-tripod-fotopro.svg,Extendable tripod with Bluetooth remote.,selfie stick; tripod
+Smart Band,Mi,Wearables,1 piece,1499,2299,14,/inventory-samples/images/electronics-smart-band-mi.svg,Fitness band with heart-rate and SpO2.,smartwatch; fitness band
+Wi-Fi Router,TP-Link,Networking,1 piece,1299,1799,9,/inventory-samples/images/electronics-wi-fi-router-tp-link.svg,300 Mbps wireless N router.,router; wifi router
+Table Fan,Usha,Appliances,1 piece,1299,1799,7,/inventory-samples/images/electronics-table-fan-usha.svg,400 mm high-speed table fan.,pankha; fan

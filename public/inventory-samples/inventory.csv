@@ -1,0 +1,51 @@
+shopType,name,brand,category,unit,price,mrp,stock,imageUrl,description,aliases
+kirana,Toned Milk,Amul,Dairy,500 ml,28,30,40,/inventory-samples/images/kirana-toned-milk-amul.svg,"Fresh pasteurised toned milk, 3% fat.",doodh; dudh
+kirana,Salted Butter,Amul,Dairy,100 g,58,62,25,/inventory-samples/images/kirana-salted-butter-amul.svg,"Creamy table butter, ideal for parathas and toast.",makhan
+kirana,Basmati Rice,India Gate,Staples,1 kg,110,130,30,/inventory-samples/images/kirana-basmati-rice-india-gate.svg,Long-grain aged basmati with a rich aroma.,chawal; chaval
+kirana,Whole Wheat Atta,Aashirvaad,Staples,5 kg,245,270,20,/inventory-samples/images/kirana-whole-wheat-atta-aashirvaad.svg,Stone-ground whole wheat flour for soft rotis.,atta; gehu ka atta
+kirana,Toor Dal,Tata Sampann,Staples,1 kg,165,185,18,/inventory-samples/images/kirana-toor-dal-tata-sampann.svg,Unpolished protein-rich toor dal.,dal; arhar dal; tuvar dal
+kirana,Parle-G Biscuits,Parle,Snacks,1 pack,10,10,120,/inventory-samples/images/kirana-parle-g-biscuits-parle.svg,The classic glucose biscuit.,biscuit; parle g
+kirana,Classic Salted Chips,Lay's,Snacks,52 g,20,20,80,/inventory-samples/images/kirana-classic-salted-chips-lay-s.svg,"Crispy potato chips, lightly salted.",chips; namkeen
+kirana,Tea Powder,Tata Tea Gold,Beverages,250 g,135,150,22,/inventory-samples/images/kirana-tea-powder-tata-tea-gold.svg,"Rich, aromatic blend of Assam tea leaves.",chai; chai patti
+kirana,Masala Soda,Thums Up,Beverages,750 ml,40,40,36,/inventory-samples/images/kirana-masala-soda-thums-up.svg,"Chilled cola, bold and fizzy.",cold drink; thanda
+kirana,Bathing Soap,Dettol,Household,125 g,42,48,60,/inventory-samples/images/kirana-bathing-soap-dettol.svg,Antibacterial soap for everyday protection.,sabun; nahane ka sabun
+pharmacy,Paracetamol 500 mg,Crocin,Pain Relief,15 tablets,32,35,90,/inventory-samples/images/pharmacy-paracetamol-500-mg-crocin.svg,Relief from fever and mild to moderate pain.,bukhar ki dawai; crocin
+pharmacy,Pain Relief Spray,Volini,Pain Relief,40 g,145,165,24,/inventory-samples/images/pharmacy-pain-relief-spray-volini.svg,Fast-acting spray for muscle and joint pain.,dard ki spray
+pharmacy,Adhesive Bandages,Band-Aid,First Aid,20 strips,48,55,70,/inventory-samples/images/pharmacy-adhesive-bandages-band-aid.svg,"Flexible, breathable bandages for minor cuts.",band aid; patti
+pharmacy,Antiseptic Liquid,Dettol,First Aid,250 ml,98,110,35,/inventory-samples/images/pharmacy-antiseptic-liquid-dettol.svg,"Kills 99.9% germs; for cuts, wounds and laundry.",dettol
+pharmacy,Vitamin C Tablets,Limcee,Vitamins,15 chewables,25,25,55,/inventory-samples/images/pharmacy-vitamin-c-tablets-limcee.svg,Orange-flavoured chewable vitamin C.,limcee; vitamin c
+pharmacy,Digital Thermometer,Omron,Devices,1 piece,199,260,15,/inventory-samples/images/pharmacy-digital-thermometer-omron.svg,"Quick, accurate digital thermometer.",thermometer; bukhar naapne ka
+pharmacy,Face Masks,Nivea,Personal Care,10 pieces,60,80,45,/inventory-samples/images/pharmacy-face-masks-nivea.svg,3-ply disposable masks with nose clip.,mask
+pharmacy,Hand Sanitizer,Himalaya,Personal Care,100 ml,55,65,50,/inventory-samples/images/pharmacy-hand-sanitizer-himalaya.svg,Alcohol-based sanitizer with aloe vera.,sanitizer
+stationery,Ball Pens (Blue),Reynolds,Writing,10 pens,80,100,60,/inventory-samples/images/stationery-ball-pens-blue-reynolds.svg,Smooth-writing ball pens for exams and office.,pen; kalam
+stationery,HB Pencils,Apsara,Writing,10 pencils,50,60,80,/inventory-samples/images/stationery-hb-pencils-apsara.svg,"Dark, smooth pencils with easy-erase lead.",pencil
+stationery,Ruled Notebook,Classmate,Paper,172 pages,60,70,100,/inventory-samples/images/stationery-ruled-notebook-classmate.svg,Long notebook with 70 GSM ruled pages.,copy; kaapi; notebook
+stationery,A4 Copier Paper,JK Paper,Paper,500 sheets,320,360,25,/inventory-samples/images/stationery-a4-copier-paper-jk-paper.svg,75 GSM bright white paper for printers.,a4 sheet; kagaz
+stationery,Stapler with Pins,Kangaro,Office,1 set,95,120,30,/inventory-samples/images/stationery-stapler-with-pins-kangaro.svg,Compact stapler with 1000 staple pins.,
+stationery,Wax Crayons,Camlin,Art,24 shades,110,130,40,/inventory-samples/images/stationery-wax-crayons-camlin.svg,Non-toxic wax crayons for kids.,crayons
+stationery,Geometry Box,Camlin,Office,1 box,140,165,28,/inventory-samples/images/stationery-geometry-box-camlin.svg,Complete geometry set with compass and divider.,geometry box
+stationery,Poster Colours,Camel,Art,12 tubes,120,145,22,/inventory-samples/images/stationery-poster-colours-camel.svg,"Bright, opaque poster colours.",paint; rang
+bakery,Sandwich Bread,Britannia,Bread,400 g,45,50,30,/inventory-samples/images/bakery-sandwich-bread-britannia.svg,"Soft, fresh sliced white bread.",bread; double roti
+bakery,Multigrain Loaf,Harvest Gold,Bread,350 g,55,60,20,/inventory-samples/images/bakery-multigrain-loaf-harvest-gold.svg,Fibre-rich multigrain bread.,multigrain bread
+bakery,Chocolate Cake,Local Bakery,Cakes,500 g,450,500,6,/inventory-samples/images/bakery-chocolate-cake-local-bakery.svg,Moist chocolate sponge with ganache frosting.,cake
+bakery,Vanilla Cupcakes,Local Bakery,Cakes,4 pieces,160,180,14,/inventory-samples/images/bakery-vanilla-cupcakes-local-bakery.svg,Fluffy cupcakes with buttercream topping.,cupcake
+bakery,Butter Croissant,Local Bakery,Pastries,1 piece,55,60,18,/inventory-samples/images/bakery-butter-croissant-local-bakery.svg,"Flaky, buttery, baked every morning.",croissant
+bakery,Glazed Donut,Local Bakery,Pastries,1 piece,45,50,24,/inventory-samples/images/bakery-glazed-donut-local-bakery.svg,Soft ring donut with sugar glaze.,donut; doughnut
+bakery,Choco Chip Cookies,Local Bakery,Cookies,200 g,110,125,26,/inventory-samples/images/bakery-choco-chip-cookies-local-bakery.svg,Crunchy cookies loaded with chocolate chips.,cookies; biscuit
+bakery,Salted Pretzels,Local Bakery,Cookies,150 g,75,85,17,/inventory-samples/images/bakery-salted-pretzels-local-bakery.svg,Baked pretzel twists with coarse salt.,pretzel
+electronics,USB-C Fast Charger,Mi,Accessories,20 W,599,899,25,/inventory-samples/images/electronics-usb-c-fast-charger-mi.svg,20 W fast charger with USB-C output.,charger
+electronics,Wired Earphones,boAt,Accessories,1 piece,349,599,40,/inventory-samples/images/electronics-wired-earphones-boat.svg,In-ear earphones with mic and deep bass.,earphones; headphones
+electronics,Power Bank,Ambrane,Accessories,10000 mAh,999,1499,18,/inventory-samples/images/electronics-power-bank-ambrane.svg,"Compact 10000 mAh power bank, dual output.",power bank
+electronics,LED Bulb 9 W,Philips,Lighting,1 piece,89,110,60,/inventory-samples/images/electronics-led-bulb-9-w-philips.svg,Energy-saving cool daylight LED bulb.,bulb; led bulb
+electronics,Rechargeable Torch,Eveready,Lighting,1 piece,299,399,20,/inventory-samples/images/electronics-rechargeable-torch-eveready.svg,Bright LED torch with USB charging.,torch
+electronics,AA Batteries,Duracell,Batteries,4 pack,140,160,55,/inventory-samples/images/electronics-aa-batteries-duracell.svg,Long-lasting alkaline AA cells.,battery; cell
+electronics,Micro-USB Cable,Portronics,Cables,1 m,149,249,35,/inventory-samples/images/electronics-micro-usb-cable-portronics.svg,Durable braided sync and charge cable.,cable; charging cable
+electronics,Wireless Mouse,Logitech,Accessories,1 piece,549,795,12,/inventory-samples/images/electronics-wireless-mouse-logitech.svg,Silent-click wireless mouse with USB receiver.,mouse
+other,Scented Candle,Home Decor,Home,1 piece,199,249,15,/inventory-samples/images/other-scented-candle-home-decor.svg,"Hand-poured scented candle, 30 hour burn.",candle; mombatti
+other,Small Indoor Plant,Green Nursery,Home,1 pot,249,299,12,/inventory-samples/images/other-small-indoor-plant-green-nursery.svg,Low-maintenance plant in a ceramic pot.,plant; paudha
+other,Gift Wrap Set,Party Time,Gifts,5 sheets,99,120,30,/inventory-samples/images/other-gift-wrap-set-party-time.svg,Assorted wrapping sheets with ribbon.,gift wrap
+other,Party Balloons,Party Time,Gifts,25 pieces,70,90,45,/inventory-samples/images/other-party-balloons-party-time.svg,Multicolour latex balloons.,balloons; gubbare
+other,Steel Mixing Bowl,Prestige,Kitchen,1 piece,175,210,22,/inventory-samples/images/other-steel-mixing-bowl-prestige.svg,Stainless-steel mixing bowl with lid.,katora; bowl
+other,Dinner Plates,Cello,Kitchen,6 pieces,399,499,14,/inventory-samples/images/other-dinner-plates-cello.svg,"Break-resistant dinner plates, set of 6.",thali; plates
+other,Soft Teddy Bear,Funzoo,Toys,1 piece,349,449,10,/inventory-samples/images/other-soft-teddy-bear-funzoo.svg,"Plush teddy bear, 30 cm.",teddy bear; soft toy
+other,Jigsaw Puzzle,Funskool,Toys,100 pieces,199,249,16,/inventory-samples/images/other-jigsaw-puzzle-funskool.svg,100-piece jigsaw puzzle for ages 5+.,puzzle

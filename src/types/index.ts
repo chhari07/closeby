@@ -81,7 +81,15 @@ export interface ShopDoc {
   phone: string;
   hours?: ShopHours;
   location?: ShopLocation;
+  /** Running counter of products in the catalog — this IS "productCount"
+   *  from the roadmap's Step 1.3, kept under its original name. */
   itemCount: number;
+  /** Running counters, updated inside the same transaction that writes an
+   *  order (Step 1.3) — read these instead of scanning the orders
+   *  collection. Optional so shops created before this field existed keep
+   *  working (treat missing as 0). */
+  orderCount?: number;
+  pendingOrderCount?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -96,6 +104,15 @@ export interface ProductDoc {
   stock: number;
   inStock: boolean;
   imageUrl: string | null;
+  // Storefront presentation fields. Optional so products created before
+  // the e-commerce catalog redesign keep working unchanged.
+  brand?: string;
+  description?: string;
+  mrp?: number; // paise, list price before discount; only shown when > price
+  /** Hindi/Hinglish alternate names (e.g. "chawal", "chaval" for rice) —
+   *  the search index Step 4's AI helpers will read from. Optional so
+   *  products created before this field existed keep working unchanged. */
+  aliases?: string[];
   updatedAt: number;
 }
 
@@ -135,6 +152,8 @@ export interface OrderDoc {
   deliveryAddress: DeliveryAddress;
   paymentMethod: PaymentMethod;
   rejectionReason?: string;
+  /** True once stock was deducted at placement; reject/cancel then returns it. */
+  stockReserved?: boolean;
   createdAt: number;
   updatedAt: number;
 }
