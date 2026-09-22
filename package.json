@@ -10,9 +10,11 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"**/firestore.rules.test.ts\"",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/firestore.rules.test.ts\"",
+    "test:ai": "tsx scripts/run-ai-cases.ts",
     "seed:localities": "tsx scripts/seed-localities.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.127.0",
     "@base-ui/react": "^1.7.0",
     "@clerk/nextjs": "^7.7.4",
     "@hookform/resolvers": "^5.7.1",

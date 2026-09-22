@@ -82,3 +82,11 @@ export async function requireShopOwner(
   const shop = await assertShopOwnership(userId, shopId);
   return { userId, shop };
 }
+
+/** Non-throwing ownership check — for AI tool `run()` functions (Step 2.3),
+ *  which can't let an exception surface mid tool-call; they check this and
+ *  return an empty/denied result instead. */
+export async function ownsShop(userId: string, shopId: string): Promise<boolean> {
+  const doc = await adminDb().collection("shops").doc(shopId).get();
+  return doc.exists && doc.data()?.ownerId === userId;
+}

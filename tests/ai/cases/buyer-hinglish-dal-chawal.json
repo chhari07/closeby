@@ -1,0 +1,8 @@
+{
+  "id": "buyer-hinglish-dal-chawal",
+  "helper": "buyerCartDraft",
+  "description": "Hinglish grocery sentence should resolve to real products at one nearby shop, or explain clearly why not.",
+  "asRole": "buyer",
+  "request": { "input": "dal chawal chahiye 4 logo ke liye", "lat": 28.6139, "lng": 77.209 },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "hello-basic",
+  "helper": "hello",
+  "description": "Baseline: the connection-test helper answers end to end (roadmap §2.9 exit check).",
+  "asRole": "buyer",
+  "request": { "input": "ping" },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}

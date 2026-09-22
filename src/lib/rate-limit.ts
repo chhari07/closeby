@@ -25,6 +25,9 @@ export const RATE_LIMITS = {
   // server actions that run right after (writing our own users/shops docs)
   // don't get that protection for free, so they get their own bucket.
   completeOnboarding: { limit: 8, windowMs: 60_000 },
+  // Step 2.2's AI entrance — one bucket for every helper, per user. Model
+  // calls cost real money, so this is tighter than the plain-write buckets.
+  aiHelper: { limit: 15, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

@@ -1,0 +1,9 @@
+{
+  "id": "hello-huge-input",
+  "helper": "hello",
+  "description": "Oversized input (>2000 chars) must be rejected by the size-limit check, not sent to the model.",
+  "asRole": "buyer",
+  "request": { "input": "ping ping ping ping ping ping ping ping ping ping " },
+  "requestInputRepeat": 100,
+  "expect": { "status": 400 }
+}

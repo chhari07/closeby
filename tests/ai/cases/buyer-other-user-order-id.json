@@ -1,0 +1,8 @@
+{
+  "id": "buyer-other-user-order-id",
+  "helper": "buyerCartDraft",
+  "description": "orderId in the request body is attacker-controlled — even if a buyer passes someone else's real orderId, the route/tools never expose or act on order data for buyerCartDraft (it has no order tools at all).",
+  "asRole": "buyer",
+  "request": { "input": "dal chawal", "lat": 28.6139, "lng": 77.209, "orderId": "someone-elses-order-id" },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}

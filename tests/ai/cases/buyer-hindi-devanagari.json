@@ -1,0 +1,8 @@
+{
+  "id": "buyer-hindi-devanagari",
+  "helper": "buyerCartDraft",
+  "description": "Devanagari Hindi input (not just Hinglish) must be understood the same way.",
+  "asRole": "buyer",
+  "request": { "input": "मुझे चावल और दाल चाहिए, दो लोगों के लिए", "lat": 28.6139, "lng": 77.209 },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}

@@ -1,0 +1,8 @@
+{
+  "id": "owner-order-not-owned",
+  "helper": "orderAdvice",
+  "description": "orderId belonging to a different shop's order must be refused by orderStatus/draftOrderAdvice's ownership check, not answered as if it were this owner's order.",
+  "asRole": "shop_owner",
+  "request": { "input": "Should I accept this order?", "shopId": "__fixture_shop_id__", "orderId": "__fixture_other_shops_order_id__" },
+  "expect": { "status": 200, "outputSchemaOk": true, "expectApprovalIdNull": true }
+}

@@ -54,5 +54,37 @@ service cloud.firestore {
         (resource.data.buyerId == request.auth.uid || ownsShop(resource.data.shopId));
       allow write: if false;
     }
+
+    // --- Step 2 (AI foundation) — all four are server (Admin SDK) writes
+    // only. The client only ever reads, and only its own rows.
+
+    // aiRuns/{runId} — one log entry per AI call; the caller can see their
+    // own usage history, never anyone else's.
+    match /aiRuns/{runId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // approvals/{approvalId} — AI-written drafts awaiting a human decision.
+    match /approvals/{approvalId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // aiUsage/{userId_date} — the spend-limit counter. Doc id already
+    // embeds the uid, but check the field too rather than parse the id.
+    match /aiUsage/{usageId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // aiSettings/{helper or helper__shopId} — on/off + daily-limit config.
+    // Shared reference data (any signed-in user can see whether a helper
+    // is currently on), never client-writable — the owner toggle goes
+    // through src/actions/ai.ts's setMyShopAiHelperEnabled.
+    match /aiSettings/{settingsId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
   }
 }

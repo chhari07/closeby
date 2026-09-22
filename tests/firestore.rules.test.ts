@@ -71,6 +71,28 @@ beforeEach(async () => {
       stock: 10,
       inStock: true,
     });
+    await setDoc(doc(db, "aiRuns", "run-1"), {
+      userId: BUYER_UID,
+      helper: "hello",
+      model: "claude-haiku-4-5",
+      result: "ok",
+      createdAt: Date.now(),
+    });
+    await setDoc(doc(db, "approvals", "approval-1"), {
+      userId: BUYER_UID,
+      type: "draftCart",
+      draft: { shopId: "live-shop-a", items: [] },
+      status: "pending",
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 86400000,
+    });
+    await setDoc(doc(db, "aiUsage", `${BUYER_UID}_2026-01-01`), {
+      userId: BUYER_UID,
+      date: "2026-01-01",
+      costUsd: 0.01,
+      requests: 1,
+    });
+    await setDoc(doc(db, "aiSettings", "hello"), { helper: "hello", shopId: null, enabled: true });
     await setDoc(doc(db, "orders", "order-1"), {
       buyerId: BUYER_UID,
       shopId: "live-shop-a",
@@ -228,5 +250,62 @@ describe("orders", () => {
   it("an unrelated user cannot read the order", async () => {
     const strangerDb = testEnv.authenticatedContext(OWNER_B_UID).firestore();
     await assertFails(getDoc(doc(strangerDb, "orders", "order-1")));
+  });
+});
+
+describe("AI collections (Step 2)", () => {
+  it("a user can read their own aiRuns entry", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "aiRuns", "run-1")));
+  });
+
+  it("a user cannot read another user's aiRuns entry", async () => {
+    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(getDoc(doc(ownerDb, "aiRuns", "run-1")));
+  });
+
+  it("no one can write an aiRuns entry directly", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(updateDoc(doc(buyerDb, "aiRuns", "run-1"), { result: "ok" }));
+  });
+
+  it("a user can read their own pending approval", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "approvals", "approval-1")));
+  });
+
+  it("a user cannot read another user's approval", async () => {
+    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(getDoc(doc(ownerDb, "approvals", "approval-1")));
+  });
+
+  it("no one can confirm/reject an approval by writing to it directly", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(updateDoc(doc(buyerDb, "approvals", "approval-1"), { status: "approved" }));
+  });
+
+  it("a user can read their own aiUsage counter", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "aiUsage", `${BUYER_UID}_2026-01-01`)));
+  });
+
+  it("a user cannot read another user's aiUsage counter", async () => {
+    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(getDoc(doc(ownerDb, "aiUsage", `${BUYER_UID}_2026-01-01`)));
+  });
+
+  it("a user cannot inflate their own aiUsage counter directly", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertFails(updateDoc(doc(buyerDb, "aiUsage", `${BUYER_UID}_2026-01-01`), { costUsd: 0 }));
+  });
+
+  it("any signed-in user can read aiSettings (to show on/off state)", async () => {
+    const buyerDb = testEnv.authenticatedContext(BUYER_UID).firestore();
+    await assertSucceeds(getDoc(doc(buyerDb, "aiSettings", "hello")));
+  });
+
+  it("a shop owner cannot flip their own aiSettings switch directly", async () => {
+    const ownerDb = testEnv.authenticatedContext(OWNER_A_UID).firestore();
+    await assertFails(updateDoc(doc(ownerDb, "aiSettings", "hello"), { enabled: false }));
   });
 });

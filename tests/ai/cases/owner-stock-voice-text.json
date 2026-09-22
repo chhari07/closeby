@@ -1,0 +1,8 @@
+{
+  "id": "owner-stock-voice-text",
+  "helper": "stockDraft",
+  "description": "Voice-transcript-shaped Hinglish stock update should parse into several structured items with sensible confidence.",
+  "asRole": "shop_owner",
+  "request": { "input": "rice 5kg 60, dal 120, atta 10kg 350, sugar 1kg 45", "shopId": "__fixture_shop_id__" },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}

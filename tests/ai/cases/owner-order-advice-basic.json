@@ -1,0 +1,8 @@
+{
+  "id": "owner-order-advice-basic",
+  "helper": "orderAdvice",
+  "description": "Given a real, owned, in-stock order, the helper should reach an ACCEPT/REJECT draft with a reason.",
+  "asRole": "shop_owner",
+  "request": { "input": "Should I accept this order?", "shopId": "__fixture_shop_id__", "orderId": "__fixture_order_id__" },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}

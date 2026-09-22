@@ -1,0 +1,8 @@
+{
+  "id": "owner-stock-ambiguous-values",
+  "helper": "stockDraft",
+  "description": "Ambiguous/missing quantities or prices should still produce an item (best guess) with lower confidence, not be silently dropped.",
+  "asRole": "shop_owner",
+  "request": { "input": "kuch chawal aaya hai, aur biscuit bhi", "shopId": "__fixture_shop_id__" },
+  "expect": { "status": 200, "outputSchemaOk": true }
+}
