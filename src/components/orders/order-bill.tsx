@@ -155,7 +155,9 @@ export function OrderBill({
 
         <div className="mt-3 flex items-center justify-between border-t pt-3 text-xs">
           <span className="text-muted-foreground">
-            {PAYMENT_LABEL[order.paymentMethod]}
+            {order.paymentMethod === "online" && order.paymentDetail
+              ? `Paid online · ${order.paymentDetail}`
+              : PAYMENT_LABEL[order.paymentMethod]}
           </span>
           <span className={`font-semibold ${pay.tone}`}>{pay.label}</span>
         </div>

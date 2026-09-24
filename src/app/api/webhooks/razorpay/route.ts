@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db/client";
-import { markOrderPaid } from "@/lib/payments/orders";
+import { markRazorpayOrderPaid } from "@/lib/payments/orders";
 import { verifyWebhookSignature } from "@/lib/payments/razorpay";
 
 export const dynamic = "force-dynamic";
@@ -34,15 +34,15 @@ export async function POST(req: Request) {
     if (event.event === "payment.captured" || event.event === "payment.authorized") {
       const payment = event.payload.payment?.entity;
       if (payment?.order_id) {
-        const [row] = await db()`select id from orders where razorpay_order_id = ${payment.order_id}`;
-        if (row) await markOrderPaid(row.id as string, payment.id);
+        const [row] = await db()`select id from orders where gateway_order_id = ${payment.order_id}`;
+        if (row) await markRazorpayOrderPaid(row.id as string, payment.id);
       }
     } else if (event.event === "refund.processed") {
       const refund = event.payload.refund?.entity;
       if (refund) {
         await db()`
-          update orders set payment_status = 'refunded', razorpay_refund_id = ${refund.id}, updated_at = ${Date.now()}
-          where razorpay_payment_id = ${refund.payment_id} and payment_status in ('refund_pending', 'refund_failed')
+          update orders set payment_status = 'refunded', gateway_refund_id = ${refund.id}, updated_at = ${Date.now()}
+          where gateway_payment_id = ${refund.payment_id} and payment_status in ('refund_pending', 'refund_failed')
         `;
       }
     }

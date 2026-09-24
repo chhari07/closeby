@@ -9,15 +9,16 @@ import {
   refundPayment,
   type RazorpayPayment,
 } from "./razorpay";
+import { demoRefundId } from "./demo";
 import type { OrderDoc } from "@/types";
 
 /**
- * Online payment lifecycle for an order (Razorpay), shared by the checkout
- * server actions (src/actions/orders.ts) and the webhook
- * (src/app/api/webhooks/razorpay/route.ts):
+ * Online payment lifecycle for an order, shared by the checkout server
+ * actions (src/actions/orders.ts), the Razorpay webhook and both gateways
+ * (Razorpay, or the built-in demo gateway — see ./provider.ts):
  *
  *   placeOrder(online) -> payment_status "pending", stock reserved, hidden
- *   from the shop -> markOrderPaid -> "paid", shop sees it and gets the alert
+ *   from the shop -> recordPayment -> "paid", shop sees it and gets the alert
  *   ...or nobody pays within PAYMENT_WINDOW_MS -> expireUnpaidOrders cancels
  *   it and returns the stock.
  *   A paid order that's rejected/cancelled -> refundOrder (full refund).
@@ -45,33 +46,25 @@ async function returnStock(tx: Tx, order: OrderDoc, now: number): Promise<void> 
 }
 
 /**
- * Records a successful payment. Checks the payment really belongs to this
- * order and covers the full amount, captures it if Razorpay only authorized
- * it, then flips the order to "paid" — once; repeat calls (checkout callback
- * + webhook both arriving) are no-ops. If the order was already cancelled
- * (e.g. paid after the 15-minute window), the money is refunded instead.
+ * Flips an order to "paid" once a gateway has confirmed the money — once;
+ * repeat calls (checkout callback + webhook both arriving) are no-ops. If
+ * the order was already cancelled (paid after the 15-minute window), the
+ * money is refunded instead.
  */
-export async function markOrderPaid(orderId: string, paymentId: string): Promise<"paid" | "refunded" | "ignored"> {
-  const [row] = await db()`select * from orders where id = ${orderId}`;
-  if (!row) return "ignored";
-  const order = toOrder(row);
-  if (!order.razorpayOrderId) return "ignored";
-
-  let payment: RazorpayPayment = await fetchPayment(paymentId);
-  if (payment.order_id !== order.razorpayOrderId || payment.amount !== order.itemTotal) {
-    console.error("[payments] payment does not match order", { orderId, paymentId });
-    return "ignored";
-  }
-  if (payment.status === "authorized") payment = await capturePayment(paymentId, order.itemTotal);
-  if (payment.status !== "captured") return "ignored";
-
+export async function recordPayment(
+  orderId: string,
+  paymentId: string,
+  detail: string,
+): Promise<"paid" | "refunded" | "ignored"> {
   const now = Date.now();
   const outcome = await db().begin(async (tx) => {
     const current = await lockOrder(tx, orderId);
     if (!current) return "ignored" as const;
     if (current.paymentStatus === "pending" && current.status === "PLACED") {
       await tx`
-        update orders set payment_status = 'paid', razorpay_payment_id = ${paymentId}, paid_at = ${now}, updated_at = ${now}
+        update orders set
+          payment_status = 'paid', gateway_payment_id = ${paymentId}, payment_detail = ${detail},
+          paid_at = ${now}, updated_at = ${now}
         where id = ${orderId}
       `;
       // Online orders only count toward the shop once paid (see placeOrder).
@@ -84,7 +77,9 @@ export async function markOrderPaid(orderId: string, paymentId: string): Promise
     if (current.paymentStatus === "expired" || (current.paymentStatus === "pending" && current.status !== "PLACED")) {
       // Paid too late: the order is already cancelled. Give the money back.
       await tx`
-        update orders set payment_status = 'refund_pending', razorpay_payment_id = ${paymentId}, paid_at = ${now}, updated_at = ${now}
+        update orders set
+          payment_status = 'refund_pending', gateway_payment_id = ${paymentId}, payment_detail = ${detail},
+          paid_at = ${now}, updated_at = ${now}
         where id = ${orderId}
       `;
       return "refund" as const;
@@ -99,16 +94,40 @@ export async function markOrderPaid(orderId: string, paymentId: string): Promise
   return outcome;
 }
 
+/**
+ * Razorpay only: checks the payment really belongs to this order and covers
+ * the full amount (asking Razorpay, not trusting the browser), captures it
+ * if it was only authorized, then records it.
+ */
+export async function markRazorpayOrderPaid(orderId: string, paymentId: string): Promise<"paid" | "refunded" | "ignored"> {
+  const [row] = await db()`select * from orders where id = ${orderId}`;
+  if (!row) return "ignored";
+  const order = toOrder(row);
+  if (order.paymentProvider !== "razorpay" || !order.gatewayOrderId) return "ignored";
+
+  let payment: RazorpayPayment = await fetchPayment(paymentId);
+  if (payment.order_id !== order.gatewayOrderId || payment.amount !== order.itemTotal) {
+    console.error("[payments] payment does not match order", { orderId, paymentId });
+    return "ignored";
+  }
+  if (payment.status === "authorized") payment = await capturePayment(paymentId, order.itemTotal);
+  if (payment.status !== "captured") return "ignored";
+  return recordPayment(orderId, paymentId, "Razorpay");
+}
+
 /** Full refund of an order in "refund_pending". Failures are recorded, not thrown. */
 export async function refundOrder(orderId: string): Promise<void> {
   const [row] = await db()`select * from orders where id = ${orderId}`;
   if (!row) return;
   const order = toOrder(row);
-  if (order.paymentStatus !== "refund_pending" || !order.razorpayPaymentId) return;
+  if (order.paymentStatus !== "refund_pending" || !order.gatewayPaymentId) return;
   try {
-    const refund = await refundPayment(order.razorpayPaymentId, { closebyOrderId: orderId });
+    const refundId =
+      order.paymentProvider === "demo"
+        ? demoRefundId()
+        : (await refundPayment(order.gatewayPaymentId, { closebyOrderId: orderId })).id;
     await db()`
-      update orders set payment_status = 'refunded', razorpay_refund_id = ${refund.id}, updated_at = ${Date.now()}
+      update orders set payment_status = 'refunded', gateway_refund_id = ${refundId}, updated_at = ${Date.now()}
       where id = ${orderId} and payment_status = 'refund_pending'
     `;
   } catch (err) {
@@ -144,16 +163,16 @@ export async function cancelUnpaidOrder(orderId: string, reason: string): Promis
 }
 
 /**
- * Sweeps online orders still unpaid after PAYMENT_WINDOW_MS. Before
- * cancelling one it asks Razorpay whether a payment did arrive (the
- * browser may have closed before telling us, and webhooks can't reach a
- * local dev machine) and records it as paid if so. Cheap and bounded, so
- * it runs opportunistically from the order lists and checkout.
+ * Sweeps online orders still unpaid after PAYMENT_WINDOW_MS. For Razorpay
+ * orders it first asks Razorpay whether a payment did arrive (the browser
+ * may have closed before telling us, and webhooks can't reach a local dev
+ * machine) and records it as paid if so. Cheap and bounded, so it runs
+ * opportunistically from the order lists and checkout.
  */
 export async function expireUnpaidOrders(scope: { shopId?: string; buyerId?: string } = {}): Promise<void> {
   const cutoff = Date.now() - PAYMENT_WINDOW_MS;
   const rows = await db()`
-    select id, razorpay_order_id from orders
+    select id, gateway_order_id, payment_provider from orders
     where payment_status = 'pending' and created_at < ${cutoff}
       ${scope.shopId ? db()`and shop_id = ${scope.shopId}` : db()``}
       ${scope.buyerId ? db()`and buyer_id = ${scope.buyerId}` : db()``}
@@ -163,12 +182,13 @@ export async function expireUnpaidOrders(scope: { shopId?: string; buyerId?: str
   for (const row of rows) {
     const orderId = row.id as string;
     try {
-      const rzpOrderId = row.razorpayOrderId as string | null;
-      const payments = rzpOrderId ? await listOrderPayments(rzpOrderId) : [];
-      const paid = payments.find((p) => p.status === "captured" || p.status === "authorized");
-      if (paid) {
-        await markOrderPaid(orderId, paid.id);
-        continue;
+      if (row.paymentProvider === "razorpay" && row.gatewayOrderId) {
+        const payments = await listOrderPayments(row.gatewayOrderId as string);
+        const paid = payments.find((p) => p.status === "captured" || p.status === "authorized");
+        if (paid) {
+          await markRazorpayOrderPaid(orderId, paid.id);
+          continue;
+        }
       }
       await cancelUnpaidOrder(orderId, "Payment not completed in time");
     } catch (err) {

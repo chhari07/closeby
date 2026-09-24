@@ -11,14 +11,19 @@ import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { ActionResult } from "./types";
 import type { OrderDoc, OrderItem, OrderStatus } from "@/types";
 import { invalidateCatalog } from "@/lib/catalog";
-import { createOrder as createRazorpayOrder, isRazorpayConfigured, razorpayKeyId, verifyCheckoutSignature } from "@/lib/payments/razorpay";
+import { createOrder as createRazorpayOrder, razorpayKeyId, verifyCheckoutSignature } from "@/lib/payments/razorpay";
+import { activePaymentProvider } from "@/lib/payments/provider";
+import { decideDemoPayment, demoOrderId, demoPaymentId, type DemoMethod } from "@/lib/payments/demo";
 import {
   cancelUnpaidOrder,
   expireUnpaidOrders,
-  markOrderPaid,
+  markRazorpayOrderPaid,
+  recordPayment,
   refundOrder,
+  PAYMENT_WINDOW_MS,
   SHOP_VISIBLE_PAYMENT,
 } from "@/lib/payments/orders";
+import type { PaymentProvider } from "@/types";
 
 export interface PlaceOrderRejection {
   reason: string;
@@ -37,11 +42,15 @@ class PlaceOrderAbort extends Error {
   }
 }
 
-/** What the browser needs to open Razorpay Checkout for one order. */
+/** What the browser needs to open the payment screen for one order. */
 export interface OrderPaymentSession {
+  provider: PaymentProvider;
+  /** Razorpay key id; empty for the demo gateway. */
   keyId: string;
-  razorpayOrderId: string;
+  gatewayOrderId: string;
   amount: number; // paise
+  /** When the order is auto-cancelled if still unpaid (epoch ms). */
+  expiresAt: number;
   shopName: string;
   buyerName: string;
   buyerPhone: string;
@@ -67,7 +76,8 @@ export async function placeOrder(
   }
   const { shopId, deliveryAddress, paymentMethod } = parsed.data;
   const online = paymentMethod === "online";
-  if (online && !isRazorpayConfigured()) {
+  const provider = online ? activePaymentProvider() : null;
+  if (online && !provider) {
     return { ok: false, error: "Online payment isn't available right now. Please choose another payment method." };
   }
   // Frees stock held by this buyer's own abandoned online checkouts first.
@@ -226,6 +236,7 @@ export async function placeOrder(
           paymentMethod,
           // Online orders wait, hidden from the shop, until Razorpay confirms payment.
           paymentStatus: online ? "pending" : "none",
+          paymentProvider: provider,
           stockReserved: true,
           createdAt: now,
           updatedAt: now,
@@ -235,7 +246,7 @@ export async function placeOrder(
       orderId = orderRow!.id as string;
       // Step 1.3 running counters — read on the dashboard instead of
       // scanning the orders table. Online orders are counted once paid
-      // (markOrderPaid), since an unpaid one may never reach the shop.
+      // (recordPayment), since an unpaid one may never reach the shop.
       if (!online) {
         await tx`
           update shops set order_count = order_count + 1, pending_order_count = pending_order_count + 1
@@ -266,29 +277,35 @@ export async function placeOrder(
   return { ok: true, data: { orderId, payment } };
 }
 
-/** Creates (once) the Razorpay order for an unpaid online order and returns the checkout details. */
+/** Creates (once) the gateway's order for an unpaid online order and returns the checkout details. */
 async function openPaymentSession(orderId: string): Promise<OrderPaymentSession | null> {
   const order = await findOrder(orderId);
-  if (!order || order.paymentStatus !== "pending" || order.status !== "PLACED") return null;
-  let razorpayOrderId = order.razorpayOrderId;
-  if (!razorpayOrderId) {
+  if (!order || order.paymentStatus !== "pending" || order.status !== "PLACED" || !order.paymentProvider) return null;
+  let gatewayOrderId = order.gatewayOrderId;
+  if (!gatewayOrderId) {
     try {
-      const created = await createRazorpayOrder(order.itemTotal, orderId, {
-        closebyOrderId: orderId,
-        shopId: order.shopId,
-        shopName: order.shopName.slice(0, 250),
-      });
-      razorpayOrderId = created.id;
-      await db()`update orders set razorpay_order_id = ${razorpayOrderId} where id = ${orderId}`;
+      gatewayOrderId =
+        order.paymentProvider === "demo"
+          ? demoOrderId()
+          : (
+              await createRazorpayOrder(order.itemTotal, orderId, {
+                closebyOrderId: orderId,
+                shopId: order.shopId,
+                shopName: order.shopName.slice(0, 250),
+              })
+            ).id;
+      await db()`update orders set gateway_order_id = ${gatewayOrderId} where id = ${orderId}`;
     } catch (err) {
-      console.error("[payments] could not create Razorpay order", orderId, err);
+      console.error("[payments] could not create gateway order", orderId, err);
       return null;
     }
   }
   return {
-    keyId: razorpayKeyId(),
-    razorpayOrderId,
+    provider: order.paymentProvider,
+    keyId: order.paymentProvider === "razorpay" ? razorpayKeyId() : "",
+    gatewayOrderId,
     amount: order.itemTotal,
+    expiresAt: order.createdAt + PAYMENT_WINDOW_MS,
     shopName: order.shopName,
     buyerName: order.buyerName,
     buyerPhone: order.buyerPhone,
@@ -312,7 +329,7 @@ export async function startOrderPayment(orderId: string): Promise<ActionResult<O
 /**
  * Called by the browser right after Razorpay Checkout succeeds. The
  * signature proves the payment came from Razorpay for this Razorpay order;
- * markOrderPaid then double-checks amount + status with Razorpay itself.
+ * markRazorpayOrderPaid then double-checks amount + status with Razorpay itself.
  */
 export async function confirmOrderPayment(
   orderId: string,
@@ -322,15 +339,44 @@ export async function confirmOrderPayment(
   if (!userId) return { ok: false, error: "Not signed in" };
   const order = await findOrder(orderId);
   if (!order || order.buyerId !== userId) return { ok: false, error: "Order not found" };
-  if (order.razorpayOrderId !== response.razorpayOrderId) return { ok: false, error: "Payment does not match this order" };
+  if (order.paymentProvider !== "razorpay" || order.gatewayOrderId !== response.razorpayOrderId) {
+    return { ok: false, error: "Payment does not match this order" };
+  }
   if (!verifyCheckoutSignature(response.razorpayOrderId, response.razorpayPaymentId, response.razorpaySignature)) {
     return { ok: false, error: "Payment could not be verified" };
   }
-  const outcome = await markOrderPaid(orderId, response.razorpayPaymentId);
+  const outcome = await markRazorpayOrderPaid(orderId, response.razorpayPaymentId);
   if (outcome === "refunded") {
     return { ok: false, error: "This order had already been cancelled, so your payment is being refunded." };
   }
   return { ok: true };
+}
+
+/**
+ * The demo gateway's "bank": decides the payment exactly like a real
+ * gateway's test mode (success@demo, test card 4111..., OTP 123456 — see
+ * src/lib/payments/demo.ts) and records it through the same path as a real
+ * payment. Only available while the demo gateway is the active one, so it
+ * can never mark an order paid on a site that takes real payments.
+ */
+export async function payDemoOrder(orderId: string, method: DemoMethod): Promise<ActionResult<{ paymentId: string }>> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Not signed in" };
+  if (activePaymentProvider() !== "demo") return { ok: false, error: "Demo payments are turned off" };
+  const order = await findOrder(orderId);
+  if (!order || order.buyerId !== userId) return { ok: false, error: "Order not found" };
+  if (order.paymentProvider !== "demo" || order.paymentStatus !== "pending" || order.status !== "PLACED") {
+    return { ok: false, error: "This order doesn't need a payment" };
+  }
+
+  const decision = decideDemoPayment(method);
+  if (!decision.ok) return { ok: false, error: decision.error };
+  const paymentId = demoPaymentId();
+  const outcome = await recordPayment(orderId, paymentId, decision.detail);
+  if (outcome === "refunded") {
+    return { ok: false, error: "This order had already been cancelled, so your payment is being refunded." };
+  }
+  return { ok: true, data: { paymentId } };
 }
 
 export async function getOrder(orderId: string): Promise<OrderDoc | null> {

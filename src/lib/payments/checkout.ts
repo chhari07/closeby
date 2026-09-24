@@ -1,6 +1,9 @@
 "use client";
 
+import { createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { confirmOrderPayment, type OrderPaymentSession } from "@/actions/orders";
+import { DemoCheckout } from "@/components/payments/demo-checkout";
 
 /** Razorpay Checkout (https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/). */
 interface RazorpayCheckout {
@@ -37,11 +40,14 @@ export type PaymentOutcome =
   | { status: "failed"; error: string };
 
 /**
- * Opens Razorpay's payment sheet (UPI, cards, netbanking, wallets) for an
- * order and, on success, has the server verify and record the payment.
- * Resolves once the buyer pays, closes the sheet, or verification fails.
+ * Opens the payment sheet for an order — Razorpay's (UPI, cards,
+ * netbanking, wallets) or the built-in demo gateway's — and, on success,
+ * has the server verify and record the payment. Resolves once the buyer
+ * pays, closes the sheet, or verification fails.
  */
 export async function payForOrder(orderId: string, session: OrderPaymentSession): Promise<PaymentOutcome> {
+  if (session.provider === "demo") return openDemoCheckout(orderId, session);
+
   if (!(await loadCheckoutScript()) || !window.Razorpay) {
     return { status: "failed", error: "Could not load the payment page. Check your internet and try again." };
   }
@@ -55,7 +61,7 @@ export async function payForOrder(orderId: string, session: OrderPaymentSession)
     };
     const checkout = new Razorpay({
       key: session.keyId,
-      order_id: session.razorpayOrderId,
+      order_id: session.gatewayOrderId,
       amount: session.amount,
       currency: "INR",
       name: "CloseBy",
@@ -77,5 +83,23 @@ export async function payForOrder(orderId: string, session: OrderPaymentSession)
     // method; only closing it (ondismiss) ends the flow.
     checkout.on("payment.failed", () => {});
     checkout.open();
+  });
+}
+
+/** Mounts the demo gateway's sheet on top of the page, like Razorpay's own overlay. */
+function openDemoCheckout(orderId: string, session: OrderPaymentSession): Promise<PaymentOutcome> {
+  return new Promise((resolve) => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const root = createRoot(host);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const done = (outcome: PaymentOutcome) => {
+      root.unmount();
+      host.remove();
+      document.body.style.overflow = previousOverflow;
+      resolve(outcome);
+    };
+    root.render(createElement(DemoCheckout, { orderId, session, onDone: done }));
   });
 }

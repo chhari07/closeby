@@ -21,6 +21,8 @@ export type OrderStatus =
 
 export type PaymentMethod = "cod" | "pay_at_shop" | "online";
 
+export type PaymentProvider = "razorpay" | "demo";
+
 /** See supabase/migrations/0002_payments.sql. "none" = not an online order. */
 export type PaymentStatus =
   | "none"
@@ -169,9 +171,14 @@ export interface OrderDoc {
   stockReserved?: boolean;
   /** Online (Razorpay) payment state; "none" for cash / pay at shop. */
   paymentStatus?: PaymentStatus;
-  razorpayOrderId?: string;
-  razorpayPaymentId?: string;
-  razorpayRefundId?: string;
+  /** Which gateway took the payment: Razorpay, or the built-in demo gateway. */
+  paymentProvider?: PaymentProvider;
+  /** The gateway's ids for this order / its payment / its refund. */
+  gatewayOrderId?: string;
+  gatewayPaymentId?: string;
+  gatewayRefundId?: string;
+  /** How it was paid, for the bill: "UPI", "Card •••• 1111", ... */
+  paymentDetail?: string;
   paidAt?: number;
   createdAt: number;
   updatedAt: number;

@@ -61,23 +61,37 @@ Fill in the values from steps 2–3. `.env.local.example` lists every
 variable name this app reads — nothing else is required. `.env.local` is
 git-ignored; never commit real keys.
 
-### 4b. Online payments (optional) — Razorpay
+### 4b. Online payments
 
-1. [Sign up at Razorpay](https://dashboard.razorpay.com/) and switch to
-   **Test mode**. **Account & Settings > API Keys > Generate Test Key**.
-2. Add to `.env.local` (server only, never `NEXT_PUBLIC_`):
-   `RAZORPAY_KEY_ID=rzp_test_...` and `RAZORPAY_KEY_SECRET=...`.
-   Without them checkout simply doesn't offer "Pay online".
-3. Deployed site only: **Webhooks > Add** —
-   `https://<your-site>/api/webhooks/razorpay`, events `payment.captured` and
-   `refund.processed`, and put the secret in `RAZORPAY_WEBHOOK_SECRET`.
+Checkout offers **Pay online** out of the box through a built-in **demo
+gateway** (`src/lib/payments/demo.ts`, `src/components/payments/demo-checkout.tsx`):
+a realistic payment sheet — UPI QR with countdown, UPI ID, card with OTP —
+that moves no real money. The QR encodes a demo code, not a UPI address, so
+a real UPI app can't pay it. Test credentials, as on real gateways:
 
-How it works: an online order holds its stock but stays hidden from the
-shop until Razorpay confirms payment (`src/lib/payments/orders.ts`);
-unpaid after 15 minutes it's cancelled and the stock returned. A paid
-order that's rejected or cancelled is refunded in full automatically. All
-money lands in the CloseBy Razorpay account — `npm run payouts` lists what
-each shop is owed for completed, paid orders.
+| Method | Pays | Declines |
+|---|---|---|
+| UPI QR | "Simulate successful scan & pay" | — |
+| UPI ID | `success@demo` | `failure@demo` |
+| Card | `4111 1111 1111 1111`, any future expiry, any CVV, OTP `123456` | `4000 0000 0000 0002` |
+
+To take real payments instead, add Razorpay keys — the app switches to
+Razorpay automatically:
+
+1. [Razorpay dashboard](https://dashboard.razorpay.com/) > **Account &
+   Settings > API Keys** (test keys start with `rzp_test_`).
+2. `.env.local` (server only): `RAZORPAY_KEY_ID=...`, `RAZORPAY_KEY_SECRET=...`.
+3. Deployed site: **Webhooks > Add** `https://<your-site>/api/webhooks/razorpay`
+   (events `payment.captured`, `refund.processed`), secret in
+   `RAZORPAY_WEBHOOK_SECRET`.
+
+`PAYMENTS_DEMO=off` hides "Pay online" when there are no Razorpay keys.
+
+How it works (both gateways): an online order holds its stock but stays
+hidden from the shop until the payment is confirmed server-side
+(`src/lib/payments/orders.ts`); unpaid after 15 minutes it's cancelled and
+the stock returned. A paid order that's rejected or cancelled is refunded
+in full automatically. `npm run payouts` lists what each shop is owed.
 
 ### 5. Create the tables and seed reference data
 
