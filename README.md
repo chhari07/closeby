@@ -61,6 +61,24 @@ Fill in the values from steps 2–3. `.env.local.example` lists every
 variable name this app reads — nothing else is required. `.env.local` is
 git-ignored; never commit real keys.
 
+### 4b. Online payments (optional) — Razorpay
+
+1. [Sign up at Razorpay](https://dashboard.razorpay.com/) and switch to
+   **Test mode**. **Account & Settings > API Keys > Generate Test Key**.
+2. Add to `.env.local` (server only, never `NEXT_PUBLIC_`):
+   `RAZORPAY_KEY_ID=rzp_test_...` and `RAZORPAY_KEY_SECRET=...`.
+   Without them checkout simply doesn't offer "Pay online".
+3. Deployed site only: **Webhooks > Add** —
+   `https://<your-site>/api/webhooks/razorpay`, events `payment.captured` and
+   `refund.processed`, and put the secret in `RAZORPAY_WEBHOOK_SECRET`.
+
+How it works: an online order holds its stock but stays hidden from the
+shop until Razorpay confirms payment (`src/lib/payments/orders.ts`);
+unpaid after 15 minutes it's cancelled and the stock returned. A paid
+order that's rejected or cancelled is refunded in full automatically. All
+money lands in the CloseBy Razorpay account — `npm run payouts` lists what
+each shop is owed for completed, paid orders.
+
 ### 5. Create the tables and seed reference data
 
 ```bash

@@ -13,10 +13,24 @@ import { useCartStore } from "@/lib/store/cart";
 import { formatPaise } from "@/lib/money";
 import { placeOrder } from "@/actions/orders";
 import { addSavedAddress } from "@/actions/users";
+import { payForOrder } from "@/lib/payments/checkout";
 import { Bilingual } from "@/components/bilingual";
 import type { SavedAddress, PaymentMethod } from "@/types";
 
-export function CheckoutForm({ savedAddresses }: { savedAddresses: SavedAddress[] }) {
+const PAYMENT_OPTIONS: { value: PaymentMethod; label: string }[] = [
+  { value: "online", label: "Pay online (UPI / card)" },
+  { value: "cod", label: "Cash on delivery" },
+  { value: "pay_at_shop", label: "Pay at shop" },
+];
+
+export function CheckoutForm({
+  savedAddresses,
+  onlinePayment = false,
+}: {
+  savedAddresses: SavedAddress[];
+  /** Razorpay keys are set on the server — offer "Pay online". */
+  onlinePayment?: boolean;
+}) {
   const router = useRouter();
   const { shopId, shopName, items, removeItems, updateItemPrice, updateQty, clear } = useCartStore();
   // Set once the order is placed so clearing the cart doesn't bounce to /cart.
@@ -99,9 +113,19 @@ export function CheckoutForm({ savedAddresses }: { savedAddresses: SavedAddress[
       return;
     }
 
+    const { orderId, payment: session } = result.data!;
     placed.current = true;
-    router.push(`/orders/${result.data!.orderId}`);
-    clear();
+    clear(); // the order exists and its stock is held, paid or not yet
+
+    if (session) {
+      setSubmitting(true);
+      const outcome = await payForOrder(orderId, session);
+      setSubmitting(false);
+      if (outcome.status === "paid") toast.success("Payment successful — your order is placed!");
+      else if (outcome.status === "failed") toast.error(outcome.error);
+      else toast.info("Payment not completed. You can pay from the order page within 15 minutes.");
+    }
+    router.push(`/orders/${orderId}`);
   }
 
   useEffect(() => {
@@ -200,17 +224,17 @@ export function CheckoutForm({ savedAddresses }: { savedAddresses: SavedAddress[
 
         <section>
           <h2 className="mb-2 text-sm font-semibold">Payment method</h2>
-          <div className="flex gap-2">
-            {(["cod", "pay_at_shop"] as const).map((method) => (
+          <div className="flex flex-wrap gap-2">
+            {PAYMENT_OPTIONS.filter((o) => o.value !== "online" || onlinePayment).map((option) => (
               <button
-                key={method}
+                key={option.value}
                 type="button"
-                onClick={() => setPayment(method)}
-                className={`min-h-11 flex-1 rounded-lg border px-3 text-sm ${
-                  payment === method ? "border-primary bg-accent" : "border-border"
+                onClick={() => setPayment(option.value)}
+                className={`min-h-11 flex-1 basis-[30%] rounded-lg border px-3 text-sm leading-tight ${
+                  payment === option.value ? "border-primary bg-accent" : "border-border"
                 }`}
               >
-                {method === "cod" ? "Cash on delivery" : "Pay at shop"}
+                {option.label}
               </button>
             ))}
           </div>

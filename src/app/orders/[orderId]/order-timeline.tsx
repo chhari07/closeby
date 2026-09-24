@@ -5,7 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import { OrderBill } from "@/components/orders/order-bill";
 import { useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { toast } from "sonner";
-import { Check, X, Loader2, Phone } from "lucide-react";
+import { Check, X, Loader2, Phone, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,7 +17,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getOrder, transitionOrder } from "@/actions/orders";
+import { getOrder, startOrderPayment, transitionOrder } from "@/actions/orders";
+import { payForOrder } from "@/lib/payments/checkout";
 import { isTerminal } from "@/lib/orders/transitions";
 import { OrderHelpChat } from "./order-help-chat";
 import type { OrderDoc, OrderStatus } from "@/types";
@@ -50,6 +51,7 @@ export function OrderTimeline({
   const [order, setOrder] = useState(initialOrder);
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   // Live status: re-read the order whenever it changes. The server-rendered
   // order stays on screen if live updates can't start.
@@ -61,6 +63,24 @@ export function OrderTimeline({
   const isBuyer = user?.id === order.buyerId;
   const terminal = isTerminal(order.status);
   const currentIdx = STEPS.indexOf(order.status);
+
+  const awaitingPayment = order.paymentStatus === "pending" && order.status === "PLACED";
+
+  async function handlePayNow() {
+    setPaying(true);
+    const session = await startOrderPayment(orderId);
+    if (!session.ok || !session.data) {
+      setPaying(false);
+      toast.error(session.error ?? "Could not start payment");
+      return;
+    }
+    const outcome = await payForOrder(orderId, session.data);
+    const fresh = await getOrder(orderId).catch(() => null);
+    if (fresh) setOrder(fresh);
+    setPaying(false);
+    if (outcome.status === "paid") toast.success("Payment successful — your order is placed!");
+    else if (outcome.status === "failed") toast.error(outcome.error);
+  }
 
   async function handleCancel() {
     setCancelling(true);
@@ -132,6 +152,22 @@ export function OrderTimeline({
               <p className="text-sm">{order.rejectionReason}</p>
             )}
           </div>
+        </div>
+      )}
+
+      {isBuyer && awaitingPayment && (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
+          <div>
+            <p className="font-medium">Payment pending</p>
+            <p className="text-muted-foreground text-sm">
+              The shop gets your order once it&apos;s paid. Pay within 15 minutes of ordering, or it&apos;s
+              cancelled automatically.
+            </p>
+          </div>
+          <Button className="min-h-11" disabled={paying} onClick={handlePayNow}>
+            {paying ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
+            Pay now
+          </Button>
         </div>
       )}
 

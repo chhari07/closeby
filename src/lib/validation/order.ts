@@ -24,7 +24,7 @@ export const placeOrderSchema = z.object({
     lat: z.number().min(-90).max(90),
     lng: z.number().min(-180).max(180),
   }),
-  paymentMethod: z.enum(["cod", "pay_at_shop"]),
+  paymentMethod: z.enum(["cod", "pay_at_shop", "online"]),
 });
 
 export type PlaceOrderInput = z.infer<typeof placeOrderSchema>;

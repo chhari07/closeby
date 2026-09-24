@@ -6,6 +6,7 @@ import { findShop, toOrder } from "@/lib/db/rows";
 import type { ActionResult } from "./types";
 import type { OrderDoc, OrderStatus } from "@/types";
 import { getShopCatalog } from "@/lib/catalog";
+import { SHOP_VISIBLE_PAYMENT } from "@/lib/payments/orders";
 
 /**
  * The shop dashboard's Reports page: sales over time, when each product
@@ -107,7 +108,11 @@ export async function getShopReport(shopId: string): Promise<ActionResult<ShopRe
   }
 
   const [orderRows, products] = await Promise.all([
-    db()`select * from orders where shop_id = ${shopId} order by created_at desc limit ${MAX_ORDERS}`,
+    db()`
+      select * from orders
+      where shop_id = ${shopId} and payment_status = any(${[...SHOP_VISIBLE_PAYMENT]})
+      order by created_at desc limit ${MAX_ORDERS}
+    `,
     getShopCatalog(shopId),
   ]);
   const orders = orderRows.map(toOrder);

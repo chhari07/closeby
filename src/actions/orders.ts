@@ -11,6 +11,14 @@ import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { ActionResult } from "./types";
 import type { OrderDoc, OrderItem, OrderStatus } from "@/types";
 import { invalidateCatalog } from "@/lib/catalog";
+import { createOrder as createRazorpayOrder, isRazorpayConfigured, razorpayKeyId, verifyCheckoutSignature } from "@/lib/payments/razorpay";
+import {
+  cancelUnpaidOrder,
+  expireUnpaidOrders,
+  markOrderPaid,
+  refundOrder,
+  SHOP_VISIBLE_PAYMENT,
+} from "@/lib/payments/orders";
 
 export interface PlaceOrderRejection {
   reason: string;
@@ -29,10 +37,20 @@ class PlaceOrderAbort extends Error {
   }
 }
 
+/** What the browser needs to open Razorpay Checkout for one order. */
+export interface OrderPaymentSession {
+  keyId: string;
+  razorpayOrderId: string;
+  amount: number; // paise
+  shopName: string;
+  buyerName: string;
+  buyerPhone: string;
+}
+
 export async function placeOrder(
   input: PlaceOrderInput,
 ): Promise<
-  ActionResult<{ orderId: string }> & { rejection?: PlaceOrderRejection }
+  ActionResult<{ orderId: string; payment?: OrderPaymentSession }> & { rejection?: PlaceOrderRejection }
 > {
   const { userId } = await auth();
   if (!userId) return { ok: false, error: "Not signed in" };
@@ -48,6 +66,12 @@ export async function placeOrder(
     };
   }
   const { shopId, deliveryAddress, paymentMethod } = parsed.data;
+  const online = paymentMethod === "online";
+  if (online && !isRazorpayConfigured()) {
+    return { ok: false, error: "Online payment isn't available right now. Please choose another payment method." };
+  }
+  // Frees stock held by this buyer's own abandoned online checkouts first.
+  if (online) await expireUnpaidOrders({ buyerId: userId });
 
   // Merge duplicate lines for the same product so stock is checked (and
   // deducted) once against the combined quantity.
@@ -200,6 +224,8 @@ export async function placeOrder(
             lng: deliveryAddress.lng,
           }),
           paymentMethod,
+          // Online orders wait, hidden from the shop, until Razorpay confirms payment.
+          paymentStatus: online ? "pending" : "none",
           stockReserved: true,
           createdAt: now,
           updatedAt: now,
@@ -208,11 +234,14 @@ export async function placeOrder(
       `;
       orderId = orderRow!.id as string;
       // Step 1.3 running counters — read on the dashboard instead of
-      // scanning the orders table.
-      await tx`
-        update shops set order_count = order_count + 1, pending_order_count = pending_order_count + 1
-        where id = ${shopId}
-      `;
+      // scanning the orders table. Online orders are counted once paid
+      // (markOrderPaid), since an unpaid one may never reach the shop.
+      if (!online) {
+        await tx`
+          update shops set order_count = order_count + 1, pending_order_count = pending_order_count + 1
+          where id = ${shopId}
+        `;
+      }
     });
   } catch (err) {
     if (err instanceof PlaceOrderAbort) {
@@ -226,7 +255,82 @@ export async function placeOrder(
   }
 
   invalidateCatalog(shopId); // stock was reserved
-  return { ok: true, data: { orderId } };
+  if (!online) return { ok: true, data: { orderId } };
+
+  const payment = await openPaymentSession(orderId);
+  if (!payment) {
+    // Couldn't reach Razorpay: don't leave stock locked behind a dead checkout.
+    await cancelUnpaidOrder(orderId, "Online payment could not be started");
+    return { ok: false, error: "Could not start online payment. Please try again or choose another payment method." };
+  }
+  return { ok: true, data: { orderId, payment } };
+}
+
+/** Creates (once) the Razorpay order for an unpaid online order and returns the checkout details. */
+async function openPaymentSession(orderId: string): Promise<OrderPaymentSession | null> {
+  const order = await findOrder(orderId);
+  if (!order || order.paymentStatus !== "pending" || order.status !== "PLACED") return null;
+  let razorpayOrderId = order.razorpayOrderId;
+  if (!razorpayOrderId) {
+    try {
+      const created = await createRazorpayOrder(order.itemTotal, orderId, {
+        closebyOrderId: orderId,
+        shopId: order.shopId,
+        shopName: order.shopName.slice(0, 250),
+      });
+      razorpayOrderId = created.id;
+      await db()`update orders set razorpay_order_id = ${razorpayOrderId} where id = ${orderId}`;
+    } catch (err) {
+      console.error("[payments] could not create Razorpay order", orderId, err);
+      return null;
+    }
+  }
+  return {
+    keyId: razorpayKeyId(),
+    razorpayOrderId,
+    amount: order.itemTotal,
+    shopName: order.shopName,
+    buyerName: order.buyerName,
+    buyerPhone: order.buyerPhone,
+  };
+}
+
+/** "Pay now" on an order page: re-opens checkout for the buyer's own unpaid online order. */
+export async function startOrderPayment(orderId: string): Promise<ActionResult<OrderPaymentSession>> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Not signed in" };
+  const order = await findOrder(orderId);
+  if (!order || order.buyerId !== userId) return { ok: false, error: "Order not found" };
+  if (order.paymentStatus !== "pending" || order.status !== "PLACED") {
+    return { ok: false, error: "This order doesn't need a payment" };
+  }
+  const payment = await openPaymentSession(orderId);
+  if (!payment) return { ok: false, error: "Could not start online payment. Please try again." };
+  return { ok: true, data: payment };
+}
+
+/**
+ * Called by the browser right after Razorpay Checkout succeeds. The
+ * signature proves the payment came from Razorpay for this Razorpay order;
+ * markOrderPaid then double-checks amount + status with Razorpay itself.
+ */
+export async function confirmOrderPayment(
+  orderId: string,
+  response: { razorpayPaymentId: string; razorpayOrderId: string; razorpaySignature: string },
+): Promise<ActionResult> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "Not signed in" };
+  const order = await findOrder(orderId);
+  if (!order || order.buyerId !== userId) return { ok: false, error: "Order not found" };
+  if (order.razorpayOrderId !== response.razorpayOrderId) return { ok: false, error: "Payment does not match this order" };
+  if (!verifyCheckoutSignature(response.razorpayOrderId, response.razorpayPaymentId, response.razorpaySignature)) {
+    return { ok: false, error: "Payment could not be verified" };
+  }
+  const outcome = await markOrderPaid(orderId, response.razorpayPaymentId);
+  if (outcome === "refunded") {
+    return { ok: false, error: "This order had already been cancelled, so your payment is being refunded." };
+  }
+  return { ok: true };
 }
 
 export async function getOrder(orderId: string): Promise<OrderDoc | null> {
@@ -338,6 +442,8 @@ export async function transitionOrder(
 
   /** Set inside the transaction when a reject/cancel puts stock back, so the cached catalog is refreshed. */
   let stockReturnedTo: string | null = null;
+  /** Set when a paid online order is rejected/cancelled: refunded after the transaction commits. */
+  let refundFor: string | null = null;
 
   // Read the current status (row locked FOR UPDATE), check it against the
   // transition map, and write the new status atomically — otherwise two
@@ -359,6 +465,13 @@ export async function transitionOrder(
           throw new TransitionAbort("You do not have access to this order");
         }
         by = "shop";
+      }
+
+      // An unpaid online order isn't the shop's yet — only the buyer can act
+      // on it (cancel), and that just abandons the payment.
+      const awaitingPayment = order.paymentStatus === "pending";
+      if (awaitingPayment && by === "shop") {
+        throw new TransitionAbort("This order is waiting for the buyer's payment");
       }
 
       const check = isValidTransition(order.status, toParsed.data, by);
@@ -394,16 +507,26 @@ export async function transitionOrder(
         by,
         ...(reasonParsed.data ? { reason: reasonParsed.data } : {}),
       };
+      const endsOrder = toParsed.data === "REJECTED" || toParsed.data === "CANCELLED";
+      const nextPayment =
+        endsOrder && order.paymentStatus === "paid"
+          ? "refund_pending"
+          : endsOrder && awaitingPayment
+            ? "expired"
+            : (order.paymentStatus ?? "none");
+      if (nextPayment === "refund_pending") refundFor = orderId;
       await tx`
         update orders set
           status = ${toParsed.data},
           updated_at = ${now},
           timeline = timeline || ${tx.json([entry])},
-          rejection_reason = coalesce(${reasonParsed.data ?? null}, rejection_reason)
+          rejection_reason = coalesce(${reasonParsed.data ?? null}, rejection_reason),
+          payment_status = ${nextPayment}
         where id = ${orderId}
       `;
-      // Step 1.3: the order just left the "pending" bucket for good.
-      if (!isTerminal(order.status) && isTerminal(toParsed.data)) {
+      // Step 1.3: the order just left the "pending" bucket for good. (An
+      // unpaid online order was never counted — see placeOrder.)
+      if (!awaitingPayment && !isTerminal(order.status) && isTerminal(toParsed.data)) {
         await tx`
           update shops set pending_order_count = greatest(pending_order_count - 1, 0)
           where id = ${order.shopId}
@@ -418,6 +541,9 @@ export async function transitionOrder(
   }
 
   if (stockReturnedTo) invalidateCatalog(stockReturnedTo);
+  // Outside the transaction: a network call to Razorpay. A failure is
+  // recorded as "refund_failed" for a manual refund, never lost.
+  if (refundFor) await refundOrder(refundFor);
   return { ok: true };
 }
 
@@ -451,9 +577,12 @@ export async function getTodayOrderCounts(shopId: string): Promise<TodayStats> {
     throw new Error("You do not own this shop");
   }
 
+  await expireUnpaidOrders({ shopId });
   const dayStart = startOfTodayIST();
   const rows = await db()`
-    select * from orders where shop_id = ${shopId} order by created_at desc limit 500
+    select * from orders
+    where shop_id = ${shopId} and payment_status = any(${[...SHOP_VISIBLE_PAYMENT]})
+    order by created_at desc limit 500
   `;
 
   const counts: Record<OrderStatus, number> = {
@@ -503,6 +632,7 @@ export async function listMyOrders(cursor?: number): Promise<OrdersPage> {
   const { userId } = await auth();
   if (!userId) return { orders: [], nextCursor: null };
 
+  if (!cursor) await expireUnpaidOrders({ buyerId: userId });
   const rows = await db()`
     select * from orders
     where buyer_id = ${userId} ${cursor ? db()`and created_at < ${cursor}` : db()``}
@@ -533,10 +663,12 @@ export async function listShopOrders(
     return { ok: false, error: "You do not own this shop" };
   }
 
+  await expireUnpaidOrders({ shopId });
   const limit = Math.min(Math.max(1, Math.floor(pageSize)), 200);
   const rows = await db()`
     select * from orders
-    where shop_id = ${shopId} ${cursor ? db()`and created_at < ${cursor}` : db()``}
+    where shop_id = ${shopId} and payment_status = any(${[...SHOP_VISIBLE_PAYMENT]})
+      ${cursor ? db()`and created_at < ${cursor}` : db()``}
     order by created_at desc
     limit ${limit}
   `;

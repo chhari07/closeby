@@ -19,7 +19,17 @@ export type OrderStatus =
   | "REJECTED"
   | "CANCELLED";
 
-export type PaymentMethod = "cod" | "pay_at_shop";
+export type PaymentMethod = "cod" | "pay_at_shop" | "online";
+
+/** See supabase/migrations/0002_payments.sql. "none" = not an online order. */
+export type PaymentStatus =
+  | "none"
+  | "pending"
+  | "paid"
+  | "expired"
+  | "refund_pending"
+  | "refunded"
+  | "refund_failed";
 
 export interface GeoPoint {
   lat: number;
@@ -157,6 +167,12 @@ export interface OrderDoc {
   rejectionReason?: string;
   /** True once stock was deducted at placement; reject/cancel then returns it. */
   stockReserved?: boolean;
+  /** Online (Razorpay) payment state; "none" for cash / pay at shop. */
+  paymentStatus?: PaymentStatus;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpayRefundId?: string;
+  paidAt?: number;
   createdAt: number;
   updatedAt: number;
 }

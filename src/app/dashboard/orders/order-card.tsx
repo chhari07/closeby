@@ -63,6 +63,17 @@ export function OrderCard({
           <span>Total</span>
           <span>{formatPaise(order.itemTotal)}</span>
         </div>
+        {order.paymentMethod === "online" && (
+          <p className="text-status-ready text-xs font-medium">
+            {order.paymentStatus === "paid"
+              ? "Paid online — don't collect cash"
+              : order.paymentStatus === "refunded" || order.paymentStatus === "refund_pending"
+                ? "Paid online · refunded to buyer"
+                : order.paymentStatus === "refund_failed"
+                  ? "Paid online · refund pending"
+                  : "Online payment"}
+          </p>
+        )}
       </div>
 
       <p className="text-muted-foreground mt-2 text-xs">

@@ -14,10 +14,27 @@ import type { OrderDoc, OrderStatus } from "@/types";
 const PAYMENT_LABEL = {
   cod: "Cash on delivery",
   pay_at_shop: "Pay at shop",
+  online: "Paid online (UPI / card)",
 } as const;
 
 function paymentStatus(order: OrderDoc): { label: string; tone: string } {
   const s: OrderStatus = order.status;
+  if (order.paymentMethod === "online") {
+    switch (order.paymentStatus) {
+      case "paid":
+        return { label: "Paid", tone: "text-status-ready" };
+      case "pending":
+        return { label: "Payment pending", tone: "text-amber-600" };
+      case "refund_pending":
+        return { label: "Refund in progress", tone: "text-muted-foreground" };
+      case "refunded":
+        return { label: "Refunded", tone: "text-status-ready" };
+      case "refund_failed":
+        return { label: "Refund delayed — we'll process it", tone: "text-status-stopped" };
+      default:
+        return { label: "Not paid", tone: "text-status-stopped" };
+    }
+  }
   if (s === "COMPLETED") return { label: "Paid", tone: "text-status-ready" };
   if (s === "REJECTED" || s === "CANCELLED")
     return { label: "No payment due", tone: "text-status-stopped" };

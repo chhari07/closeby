@@ -28,18 +28,24 @@ export function OrderAlerts({ shopId }: { shopId: string }) {
   }, []);
 
   useOrderSignals(`shop-orders:${shopId}`, async (signal) => {
-    if (signal.op !== "INSERT" || signal.status !== "PLACED") return;
+    // A new order reaches the shop when it's placed (cash / pay at shop) or,
+    // for an online order, when its payment goes through.
+    const arrived =
+      (signal.op === "INSERT" && (signal.paymentStatus ?? "none") === "none") ||
+      (signal.op === "UPDATE" && signal.previousPaymentStatus === "pending" && signal.paymentStatus === "paid");
+    if (!arrived || signal.status !== "PLACED") return;
     if (alerted.current.has(signal.id)) return;
     alerted.current.add(signal.id);
 
     // Re-read through the server: the signal carries no order details, and
     // getOrder only returns orders this owner's shop actually received.
     const order = await getOrder(signal.id);
-    if (!order || order.shopId !== shopId || order.status !== "PLACED") return;
+    if (!order || order.shopId !== shopId || order.status !== "PLACED" || order.paymentStatus === "pending") return;
 
     playNewOrderPing();
     const itemCount = order.items.reduce((n, it) => n + it.qty, 0);
-    const body = `${order.buyerName} · ${itemCount} item${itemCount === 1 ? "" : "s"} · ${formatPaise(order.itemTotal)}`;
+    const paid = order.paymentMethod === "online" ? " · paid online" : "";
+    const body = `${order.buyerName} · ${itemCount} item${itemCount === 1 ? "" : "s"} · ${formatPaise(order.itemTotal)}${paid}`;
     toast.success("New order!", {
       description: body,
       action: { label: "View", onClick: () => router.push("/dashboard/orders") },

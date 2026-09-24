@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { isSupabaseConfigured, supabaseBrowser } from "@/lib/supabase/browser";
-import type { OrderStatus } from "@/types";
+import type { OrderStatus, PaymentStatus } from "@/types";
 
 /** What the database trigger broadcasts on every order insert/update — ids and status only. */
 export interface OrderSignal {
@@ -10,6 +10,8 @@ export interface OrderSignal {
   status: OrderStatus;
   op: "INSERT" | "UPDATE";
   previousStatus: OrderStatus | null;
+  paymentStatus?: PaymentStatus;
+  previousPaymentStatus?: PaymentStatus | null;
 }
 
 /**
