@@ -10,7 +10,7 @@ import { Loader2 } from "lucide-react";
 
 const LocationPicker = dynamic(
   () => import("@/components/map/location-picker").then((m) => m.LocationPicker),
-  { ssr: false, loading: () => <div className="bg-muted h-72 w-full animate-pulse rounded-xl" /> }
+  { ssr: false, loading: () => <div className="bg-muted h-80 w-full animate-pulse rounded-xl sm:h-96" /> }
 );
 
 // Guna, MP — sane fallback center when geolocation is denied/unavailable.
@@ -76,10 +76,11 @@ export function StepLocation({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-muted-foreground text-sm">
-        Drop the pin exactly where buyers should find your shop. Drag it or tap the map to adjust.
+        Search your area or use your location, then drag the pin (or tap the map) to the exact spot of
+        your shop. Switch to Satellite to find your building.
       </p>
       {locating ? (
-        <div className="bg-muted flex h-72 w-full items-center justify-center gap-2 rounded-xl text-sm">
+        <div className="bg-muted flex h-80 w-full items-center justify-center gap-2 rounded-xl text-sm sm:h-96">
           <Loader2 className="size-4 animate-spin" /> Finding your location...
         </div>
       ) : (
