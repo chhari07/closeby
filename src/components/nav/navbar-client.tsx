@@ -10,6 +10,7 @@ import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
 import { useCartStore } from "@/lib/store/cart";
 import { ROLE_NAV_ITEMS } from "@/lib/nav/role-nav-items";
+import { useUnreadMessages } from "@/lib/hooks/use-unread-messages";
 import type { Role } from "@/types";
 
 export function NavbarClient({
@@ -33,6 +34,9 @@ export function NavbarClient({
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
   const cartCount = useCartStore((s) => s.items.reduce((sum, i) => sum + i.qty, 0));
+  const unreadMessages = useUnreadMessages(signedIn && role === "buyer");
+  const badgeCount = (badge: "cart" | "messages" | undefined) =>
+    badge === "cart" ? cartCount : badge === "messages" ? unreadMessages : 0;
 
   const homeHref = !signedIn ? "/" : role === "shop_owner" ? "/dashboard" : role ? "/shops" : "/";
   const items = role ? ROLE_NAV_ITEMS[role] : [];
@@ -93,9 +97,9 @@ export function NavbarClient({
                         <Link href={item.href} aria-label={item.label} title={item.label}>
                           <Icon className="size-4" />
                           <span className="hidden lg:inline">{item.label}</span>
-                          {item.badge === "cart" && cartCount > 0 && (
-                            <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[10px]">
-                              {cartCount}
+                          {badgeCount(item.badge) > 0 && (
+                            <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]">
+                              {badgeCount(item.badge) > 99 ? "99+" : badgeCount(item.badge)}
                             </span>
                           )}
                         </Link>
@@ -135,9 +139,9 @@ export function NavbarClient({
               >
                 <Icon className="size-5" />
                 {item.label}
-                {item.badge === "cart" && cartCount > 0 && (
-                  <span className="bg-primary text-primary-foreground absolute top-1 right-1/4 flex size-4 items-center justify-center rounded-full text-[10px]">
-                    {cartCount}
+                {badgeCount(item.badge) > 0 && (
+                  <span className="bg-primary text-primary-foreground absolute top-1 right-1/4 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]">
+                    {badgeCount(item.badge) > 99 ? "99+" : badgeCount(item.badge)}
                   </span>
                 )}
               </Link>

@@ -60,6 +60,8 @@ export interface UserDoc {
   createdAt: number;
   savedAddresses?: SavedAddress[];
   lastKnownLocation?: LastKnownLocation;
+  /** When the buyer last opened the Messages tab (epoch ms); 0 = never. */
+  messagesReadAt?: number;
 }
 
 export interface Locality {
