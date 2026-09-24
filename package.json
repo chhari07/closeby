@@ -13,7 +13,8 @@
     "seed:localities": "tsx scripts/seed-localities.ts",
     "seed:test-shop": "tsx scripts/seed-test-shop.ts",
     "db:migrate": "tsx scripts/db-migrate.ts",
-    "payouts": "tsx scripts/payouts.ts"
+    "payouts": "tsx scripts/payouts.ts",
+    "seed:sales": "tsx scripts/seed-sales.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

@@ -6,6 +6,7 @@ import { findOrder, findShop, toProduct } from "@/lib/db/rows";
 import { ownsShop } from "@/lib/auth/guards";
 import type { ToolContext } from "./context";
 import { normalizeStockItems } from "@/lib/ai/stock-items";
+import { saveShopIdeas } from "@/lib/shop-ideas";
 
 /**
  * Draft tools (roadmap §2.3 / §2.5). These are the ONLY things the AI is
@@ -152,6 +153,40 @@ export function draftOrderAdviceTool(ctx: ToolContext) {
         confidence,
       });
       return JSON.stringify({ approvalId });
+    },
+  });
+}
+
+/**
+ * Step 3.3: the owner's restock / price ideas. Saves them as pending
+ * approvals via saveShopIdeas, which drops anything that isn't one of the
+ * server's candidates and clamps every number into its allowed range — so
+ * whatever the model sends, nothing out of bounds is stored, and nothing
+ * changes a product until the owner presses Apply.
+ */
+export function draftShopIdeasTool(ctx: ToolContext) {
+  return betaZodTool({
+    name: "draftShopIdeas",
+    description: "Save restock / price / slow-item ideas for the owner to review. Only use productIds from the candidate list.",
+    inputSchema: z.object({
+      ideas: z
+        .array(
+          z.object({
+            productId: z.string().trim().min(1).max(80),
+            kind: z.enum(["restock", "price", "slow"]),
+            suggestedQty: z.number().int().min(1).max(100000).optional(),
+            suggestedPrice: z.number().positive().max(10000000).optional(),
+            reason: z.string().trim().min(1).max(300),
+          }),
+        )
+        .max(20),
+    }),
+    run: async ({ ideas }) => {
+      if (ctx.role !== "shop_owner" || !ctx.shopId || !(await ownsShop(ctx.userId, ctx.shopId))) {
+        throw new Error("Not your shop");
+      }
+      const approvalIds = await saveShopIdeas(ctx.userId, ctx.shopId, ideas);
+      return JSON.stringify({ saved: approvalIds.length });
     },
   });
 }

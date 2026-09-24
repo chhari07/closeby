@@ -20,6 +20,7 @@ import type { AiHelperName, AiRunResult } from "@/types/ai";
 import { getShopCatalog } from "@/lib/catalog";
 import { getConversation } from "@/actions/messages";
 import { buildChatReplyContext } from "@/lib/ai/chat-context";
+import { describeCandidates, loadIdeaCandidates } from "@/lib/shop-ideas";
 
 export const dynamic = "force-dynamic";
 
@@ -121,7 +122,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
     shopId = order.shopId; // the shop's own AI on/off switch applies
   }
 
-  if (!chatContext && !parsedBody.data.input && images.length === 0) {
+  // Owner ideas (Step 3.3) run on server-computed sales facts, not typed input.
+  const serverInput = helperDef.name === "shopIdeas";
+
+  if (!chatContext && !serverInput && !parsedBody.data.input && images.length === 0) {
     return NextResponse.json({ error: "Type something or add a photo first" }, { status: 400 });
   }
   if (images.length > 0 && !helperDef.visionModel) {
@@ -150,6 +154,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
   const enabled = await isHelperEnabled(helperDef.name, shopId);
   if (!enabled) return NextResponse.json({ error: "This AI helper is turned off right now." }, { status: 503 });
 
+  // Ideas: work out the candidates first — with nothing worth suggesting
+  // (e.g. no sales history yet), answer straight away without a model call.
+  let ideasInput: string | null = null;
+  if (helperDef.name === "shopIdeas" && shopId) {
+    const candidates = await loadIdeaCandidates(shopId);
+    if (candidates.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        data: { count: 0, summary: "Nothing to suggest right now — stock and sales look fine, or there isn't enough sales history yet." },
+      });
+    }
+    ideasInput = describeCandidates(candidates);
+  }
+
   // 4. daily spend limit --------------------------------------------------------
   const [spentToday, dailyLimit] = await Promise.all([
     getTodaySpendUsd(userId),
@@ -160,7 +178,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
   }
 
   // 5. clean + size-limit input --------------------------------------------------
-  const input = cleanInput(chatContext ? chatContext.data : parsedBody.data.input);
+  const input = cleanInput(chatContext ? chatContext.data : (ideasInput ?? parsedBody.data.input));
 
   const start = Date.now();
   const tools = buildTools(helperDef.name, { userId, role: me.role, shopId, orderId });

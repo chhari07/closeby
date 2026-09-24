@@ -1,10 +1,12 @@
 "use server";
 
 import { db } from "@/lib/db/client";
-import { toApproval } from "@/lib/db/rows";
+import { findProduct, toApproval } from "@/lib/db/rows";
+import { pendingShopIdeas, type ShopIdeaDraft } from "@/lib/shop-ideas";
+import { formatPaise } from "@/lib/money";
 import { requireUserId, assertShopOwnership } from "@/lib/auth/guards";
 import { setHelperEnabled, getHelperStatusesForShop } from "@/lib/ai/settings";
-import { bulkImportProducts } from "@/actions/products";
+import { bulkImportProducts, updateProduct } from "@/actions/products";
 import { transitionOrder } from "@/actions/orders";
 import type { ActionResult } from "./types";
 import type { ApprovalDoc, AiHelperName } from "@/types/ai";
@@ -125,5 +127,50 @@ export async function setMyShopAiHelperEnabled(
   const userId = await requireUserId();
   await assertShopOwnership(userId, shopId);
   await setHelperEnabled(helper, enabled, shopId);
+  return { ok: true };
+}
+
+// --- Step 3.3: owner restock & price ideas ----------------------------------
+
+export async function listMyShopIdeas(shopId: string): Promise<(ApprovalDoc & { draft: ShopIdeaDraft })[]> {
+  const userId = await requireUserId();
+  await assertShopOwnership(userId, shopId);
+  return pendingShopIdeas(userId, shopId);
+}
+
+/**
+ * The owner acts on an idea. `price` (rupees) applies a price idea — the
+ * AI's or the owner's own number — through the normal updateProduct action,
+ * checked against the product's CURRENT MRP. Without a price the idea is
+ * just marked done (a restock idea never changes stock by itself: it's the
+ * owner's list for the supplier).
+ */
+export async function applyShopIdea(approvalId: string, price?: number): Promise<ActionResult> {
+  const userId = await requireUserId();
+  const { approval } = await loadOwnPendingApproval(approvalId, userId);
+  if (!approval || approval.type !== "shopIdea") return { ok: false, error: "Idea not found" };
+  if (approval.status !== "pending") return { ok: false, error: `Already ${approval.status}` };
+  if (Date.now() > approval.expiresAt) {
+    await decideApproval(approvalId, "expired");
+    return { ok: false, error: "This idea expired — get fresh ideas" };
+  }
+  const draft = approval.draft as ShopIdeaDraft;
+  await assertShopOwnership(userId, draft.shopId);
+
+  let edited = false;
+  if (price !== undefined) {
+    if (!Number.isFinite(price) || price <= 0) return { ok: false, error: "Enter a valid price" };
+    const paise = Math.round(price * 100);
+    const product = await findProduct(draft.shopId, draft.productId);
+    if (!product) return { ok: false, error: "This product no longer exists" };
+    if (typeof product.mrp === "number" && product.mrp > 0 && paise > product.mrp) {
+      return { ok: false, error: `Price can't be above the MRP (${formatPaise(product.mrp)})` };
+    }
+    const result = await updateProduct(draft.shopId, draft.productId, { price: paise });
+    if (!result.ok) return result;
+    edited = paise !== draft.suggestedPrice;
+  }
+
+  await decideApproval(approvalId, "approved", edited);
   return { ok: true };
 }

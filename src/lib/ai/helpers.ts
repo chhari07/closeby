@@ -201,6 +201,34 @@ export const HELPERS: Record<AiHelperName, HelperDef> = {
     outputSchema: z.object({ replies: z.array(z.string().trim().min(1).max(240)).min(1).max(3) }),
     outputShapeHint: '{"replies": [string, string, string]}',
   },
+
+  shopIdeas: {
+    name: "shopIdeas",
+    role: "shop_owner",
+    model: AI_MODELS.haiku,
+    maxToolSteps: 3,
+    systemPrompt:
+      "You give a CloseBy shop owner practical restock and price ideas. " +
+      `${DATA_RULE} Inside <data> is a list of CANDIDATES the server picked ` +
+      "from the shop's real last-30-days sales and current stock — one per " +
+      "line with productId, kind and facts (stock, sold in 30 days, sold per " +
+      "day, days left, price, MRP) plus the allowed range for any number you " +
+      "suggest. Kinds: restock (runs out within a week — suggest how many to " +
+      "order, about two weeks of sales), price (a fast seller priced under MRP " +
+      "— you MAY suggest a small rise inside the range, or skip it if the rise " +
+      "isn't worth it), slow (nothing sold in 30 days — suggest a modest offer " +
+      "price, usually 5-10% off, going deeper only when a lot of stock is " +
+      "stuck; or just flag it). Use ONLY these candidates and their " +
+      "exact numbers; never invent a product, a sale or a price, and stay " +
+      "inside every range. Give each idea a short, friendly reason the owner " +
+      "reads in one glance, quoting the key numbers (e.g. \"4 left, sells about " +
+      "3 a day — runs out tomorrow\"). Never mention ranges, limits or " +
+      "candidates in a reason — the owner only sees the idea. Call draftShopIdeas once with the " +
+      "ideas worth acting on (most urgent first, up to 12), then answer ONLY " +
+      'with JSON: {"count": number, "summary": string} — summary is one line.',
+    outputSchema: z.object({ count: z.number().int().min(0), summary: z.string().max(300) }),
+    outputShapeHint: '{"count": number, "summary": string}',
+  },
 };
 
 /** Which of the narrow tool list each helper is allowed to call (Step 2.7). */
@@ -211,4 +239,5 @@ export const HELPER_TOOLS: Record<AiHelperName, string[]> = {
   stockDraft: ["draftStockList"],
   orderHelp: ["orderStatus"],
   chatReply: [],
+  shopIdeas: ["draftShopIdeas"],
 };

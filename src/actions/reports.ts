@@ -7,6 +7,7 @@ import type { ActionResult } from "./types";
 import type { OrderDoc, OrderStatus } from "@/types";
 import { getShopCatalog } from "@/lib/catalog";
 import { SHOP_VISIBLE_PAYMENT } from "@/lib/payments/orders";
+import { productFacts } from "@/lib/shop-insights";
 
 /**
  * The shop dashboard's Reports page: sales over time, when each product
@@ -25,8 +26,6 @@ const RESTOCK_LEAD_DAYS = 2;
 /** Newest orders read for the report — bounds a single page load. */
 const MAX_ORDERS = 1000;
 
-/** Orders whose stock stays taken: everything except rejected/cancelled. */
-const COUNTS_AS_SOLD = new Set<OrderStatus>(["PLACED", "ACCEPTED", "PREPARING", "READY", "COMPLETED"]);
 
 function istDayStart(ms: number): number {
   return Math.floor((ms + IST_OFFSET_MS) / DAY_MS) * DAY_MS - IST_OFFSET_MS;
@@ -128,7 +127,6 @@ export async function getShopReport(shopId: string): Promise<ActionResult<ShopRe
     orders: 0,
   }));
   const top = new Map<string, { name: string; unit: string; qty: number; revenue: number }>();
-  const soldRecent = new Map<string, number>();
   const velocityStart = now - VELOCITY_DAYS * DAY_MS;
   const buyers = new Map<string, BuyerRow>();
 
@@ -148,10 +146,6 @@ export async function getShopReport(shopId: string): Promise<ActionResult<ShopRe
           }
         }
       }
-    }
-
-    if (COUNTS_AS_SOLD.has(o.status) && o.createdAt >= velocityStart) {
-      for (const item of o.items) soldRecent.set(item.productId, (soldRecent.get(item.productId) ?? 0) + item.qty);
     }
 
     const b = buyers.get(o.buyerId) ?? {
@@ -175,28 +169,25 @@ export async function getShopReport(shopId: string): Promise<ActionResult<ShopRe
     buyers.set(o.buyerId, b);
   }
 
-  // Restock forecast: current stock ÷ average daily sales over the last 30
-  // days (or since the oldest order, if the shop is newer than that).
-  const oldestOrderAt = orders.length ? orders[orders.length - 1]!.createdAt : now;
-  const windowDays = Math.max(7, Math.min(VELOCITY_DAYS, (now - oldestOrderAt) / DAY_MS));
-  const restock: RestockRow[] = products.map((p) => {
-    const sold = soldRecent.get(p.id) ?? 0;
-    const perDay = sold / windowDays;
-    const stock = Math.max(0, p.stock ?? 0);
-    const daysLeft = perDay > 0 ? stock / perDay : null;
+  // Restock forecast: current stock ÷ average daily sales (src/lib/shop-insights.ts,
+  // shared with the owner's AI ideas so both show the same numbers).
+  const restock: RestockRow[] = productFacts(products, orders, now).map((f) => {
+    const sold = f.sold30d;
+    const stock = f.stock;
+    const daysLeft = f.daysLeft;
     const restockBy =
       stock === 0 ? today : daysLeft !== null ? istDayStart(now + Math.max(0, daysLeft - RESTOCK_LEAD_DAYS) * DAY_MS) : null;
     const urgency: RestockRow["urgency"] =
       stock === 0 ? "now" : daysLeft === null ? "idle" : daysLeft <= RESTOCK_LEAD_DAYS ? "now" : daysLeft <= 7 ? "soon" : "ok";
     return {
-      productId: p.id,
-      name: p.name,
-      unit: p.unit,
+      productId: f.productId,
+      name: f.name,
+      unit: f.unit,
       stock,
       sold30d: sold,
       daysLeft: daysLeft === null ? null : Math.round(daysLeft * 10) / 10,
       restockBy,
-      lastRestockedAt: p.lastRestockedAt ?? null,
+      lastRestockedAt: f.lastRestockedAt,
       urgency,
     };
   });

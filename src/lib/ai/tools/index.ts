@@ -1,6 +1,6 @@
 import "server-only";
 import { nearbyShopsTool, searchProductsTool, orderStatusTool, shopStockTool } from "./lookup";
-import { draftCartTool, draftStockListTool, draftOrderAdviceTool } from "./draft";
+import { draftCartTool, draftStockListTool, draftOrderAdviceTool, draftShopIdeasTool } from "./draft";
 import { HELPER_TOOLS } from "@/lib/ai/helpers";
 import type { AiHelperName } from "@/types/ai";
 import type { ToolContext } from "./context";
@@ -22,6 +22,7 @@ export function buildTools(helper: AiHelperName, ctx: ToolContext) {
     draftCart: draftCartTool(ctx),
     draftStockList: draftStockListTool(ctx),
     draftOrderAdvice: draftOrderAdviceTool(ctx),
+    draftShopIdeas: draftShopIdeasTool(ctx),
   };
   return HELPER_TOOLS[helper].map((name) => all[name]);
 }

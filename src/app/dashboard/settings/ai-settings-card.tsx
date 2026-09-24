@@ -13,6 +13,7 @@ const TOGGLABLE_HELPERS: { name: AiHelperName; label: string }[] = [
   { name: "stockDraft", label: "Voice/text stock import" },
   { name: "buyerCartDraft", label: "Buyer sentence-to-cart (affects your shop's listing)" },
   { name: "chatReply", label: "AI reply suggestions in order chats (you and your buyers)" },
+  { name: "shopIdeas", label: "AI restock & price ideas" },
 ];
 
 /** Roadmap §2.6/§2.9 — the owner-facing on/off switch + a "hello" test call. */

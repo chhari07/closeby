@@ -2,7 +2,7 @@
 // docs/closeby-ai-roadmap-steps.txt §2.4. Kept separate from src/types/index.ts
 // since these are AI-plumbing types, not storefront/order domain types.
 
-export type AiHelperName = "hello" | "buyerCartDraft" | "orderAdvice" | "stockDraft" | "orderHelp" | "chatReply";
+export type AiHelperName = "hello" | "buyerCartDraft" | "orderAdvice" | "stockDraft" | "orderHelp" | "chatReply" | "shopIdeas";
 
 export type AiRunResult = "ok" | "error" | "refused" | "invalid_output";
 
@@ -24,7 +24,7 @@ export interface AiRunDoc {
   createdAt: number;
 }
 
-export type ApprovalType = "draftCart" | "draftStockList" | "draftOrderAdvice";
+export type ApprovalType = "draftCart" | "draftStockList" | "draftOrderAdvice" | "shopIdea";
 export type ApprovalStatus = "pending" | "approved" | "rejected" | "expired";
 
 /**
