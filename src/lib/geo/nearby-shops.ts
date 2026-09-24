@@ -1,7 +1,7 @@
 import "server-only";
 import { geohashQueryBounds, distanceBetween } from "geofire-common";
 import { adminDb } from "@/lib/firebase/admin";
-import type { GeoPoint, NearbyShopResult, ShopDoc } from "@/types";
+import type { GeoPoint, NearbyShopResult, ShopDoc, ShopListResult } from "@/types";
 
 /** Page size per geohash-bound query. */
 const MAX_DOCS_PER_BOUND = 300;
@@ -145,5 +145,41 @@ export async function getNearbyShops(
   }
 
   results.sort((a, b) => a.distanceInM - b.distanceInM);
+  return results;
+}
+
+/**
+ * The "Any distance" browse list: EVERY live shop — open or closed, with or
+ * without a location on file — whether or not the buyer has set a location
+ * (phone, PC, anywhere). Open shops come first, then nearest (when a
+ * distance can be worked out); shops with no distance go last. Ordering
+ * flows (AI cart, product search) keep using getNearbyShops, which only
+ * returns open shops.
+ */
+export async function listAllShops(origin: GeoPoint | null): Promise<ShopListResult[]> {
+  const snap = await adminDb()
+    .collection("shops")
+    .where("status", "==", "live")
+    .limit(MAX_UNLIMITED_DOCS)
+    .get();
+
+  const hasOrigin = !!origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
+  const results: ShopListResult[] = snap.docs.map((doc) => {
+    const shop = shopFromDoc(doc.id, doc.data());
+    const distanceInM =
+      hasOrigin && hasValidLocation(shop)
+        ? distanceBetween([origin!.lat, origin!.lng], [shop.location!.lat, shop.location!.lng]) * 1000
+        : null;
+    return { shop, distanceInM };
+  });
+
+  results.sort((a, b) => {
+    if (a.shop.isOpen !== b.shop.isOpen) return a.shop.isOpen ? -1 : 1;
+    if (a.distanceInM === null || b.distanceInM === null) {
+      if (a.distanceInM === b.distanceInM) return a.shop.name.localeCompare(b.shop.name);
+      return a.distanceInM === null ? 1 : -1;
+    }
+    return a.distanceInM - b.distanceInM;
+  });
   return results;
 }

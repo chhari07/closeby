@@ -15,6 +15,11 @@ export type AiModelId = (typeof AI_MODELS)[keyof typeof AI_MODELS];
 const PRICING_USD_PER_MTOK: Record<string, { input: number; output: number }> = {
   [AI_MODELS.haiku]: { input: 1.0, output: 5.0 },
   [AI_MODELS.sonnet]: { input: 2.0, output: 10.0 },
+  // OpenAI path (AI_PROVIDER=openai) — add a row if OPENAI_MODEL is changed.
+  "gpt-4o-mini": { input: 0.15, output: 0.6 },
+  "gpt-4o": { input: 2.5, output: 10.0 },
+  "gpt-4.1": { input: 2.0, output: 8.0 },
+  "gpt-4.1-mini": { input: 0.4, output: 1.6 },
 };
 
 /** Cost of one call from raw token counts — used to fill aiRuns.costUsd and aiUsage. */

@@ -3,6 +3,27 @@
   "helper": "buyerCartDraft",
   "description": "Hinglish grocery sentence should resolve to real products at one nearby shop, or explain clearly why not.",
   "asRole": "buyer",
-  "request": { "input": "dal chawal chahiye 4 logo ke liye", "lat": 28.6139, "lng": 77.209 },
-  "expect": { "status": 200, "outputSchemaOk": true }
+  "request": {
+    "input": "dal chawal chahiye 4 logo ke liye",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "dal"
+        ]
+      },
+      {
+        "anyOf": [
+          "rice"
+        ]
+      }
+    ],
+    "expectMaxItems": 3
+  },
+  "manualCheck": "Expect 1 dal + 1 rice from Sharma General Store."
 }

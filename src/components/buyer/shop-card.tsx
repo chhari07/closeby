@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Store, Pill, Pencil, Croissant, Cpu, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import type { NearbyShopResult, ShopType } from "@/types";
+import type { ShopListResult, ShopType } from "@/types";
 
 const TINTS: Record<ShopType, string> = {
   kirana: "bg-orange-100 text-orange-700",
@@ -30,7 +30,7 @@ export function ShopCard({
   shop,
   distanceInM,
   matchedProductName,
-}: NearbyShopResult & { matchedProductName?: string }) {
+}: ShopListResult & { matchedProductName?: string }) {
   const Icon = ICONS[shop.type];
   return (
     <Link
@@ -43,7 +43,8 @@ export function ShopCard({
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{shop.name}</p>
         <p className="text-muted-foreground text-xs">
-          {formatDistance(distanceInM)} · {shop.itemCount} items
+          {distanceInM !== null && `${formatDistance(distanceInM)} · `}
+          {shop.itemCount} items
         </p>
         {matchedProductName && (
           <p className="text-primary-ink truncate text-xs">Has: {matchedProductName}</p>

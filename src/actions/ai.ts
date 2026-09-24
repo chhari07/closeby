@@ -37,7 +37,16 @@ export async function listMyApprovals(): Promise<ApprovalDoc[]> {
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ApprovalDoc, "id">) }));
 }
 
-export async function confirmApproval(approvalId: string): Promise<ActionResult<unknown>> {
+/**
+ * `stockItems` (draftStockList only): the owner's corrected rows from the
+ * review table — prices fixed, rows removed. They go through
+ * bulkImportProducts' own per-row validation exactly like a JSON/CSV import,
+ * so they're trusted no more than a file the owner uploads.
+ */
+export async function confirmApproval(
+  approvalId: string,
+  edits?: { stockItems?: unknown[] },
+): Promise<ActionResult<unknown>> {
   const userId = await requireUserId();
   const { ref, approval } = await loadOwnPendingApproval(approvalId, userId);
   if (!approval) return { ok: false, error: "Approval not found" };
@@ -58,7 +67,10 @@ export async function confirmApproval(approvalId: string): Promise<ActionResult<
     );
   } else if (approval.type === "draftStockList") {
     const draft = approval.draft as { shopId: string; items: unknown[] };
-    result = await bulkImportProducts(draft.shopId, draft.items);
+    const items = edits?.stockItems ?? draft.items;
+    if (!Array.isArray(items) || items.length === 0) return { ok: false, error: "No items left to import" };
+    if (items.length > 50) return { ok: false, error: "Too many items" };
+    result = await bulkImportProducts(draft.shopId, items);
   } else if (approval.type === "draftCart") {
     // No direct write here — the buyer's cart UI applies the draft items
     // and goes through the ordinary placeOrder call, which re-checks price
@@ -68,7 +80,8 @@ export async function confirmApproval(approvalId: string): Promise<ActionResult<
 
   if (!result.ok) return result;
 
-  await ref.update({ status: "approved", decidedAt: Date.now() });
+  // `edited` feeds the accept-rate numbers (3.4): approved as-is vs. corrected first.
+  await ref.update({ status: "approved", decidedAt: Date.now(), edited: Boolean(edits?.stockItems) });
   // draftCart has no underlying action result to hand back (see above) — give
   // the caller the draft itself instead. draftOrderAdvice/draftStockList hand
   // back whatever transitionOrder/bulkImportProducts actually returned (e.g.

@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "bash scripts/dev-emulator.sh",
+    "dev:emu": "bash scripts/dev-emulator.sh",
+    "dev:real": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,7 +13,8 @@
     "test": "vitest run --exclude \"**/firestore.rules.test.ts\"",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run tests/firestore.rules.test.ts\"",
     "test:ai": "tsx scripts/run-ai-cases.ts",
-    "seed:localities": "tsx scripts/seed-localities.ts"
+    "seed:localities": "tsx scripts/seed-localities.ts",
+    "seed:emu": "tsx scripts/seed-emulator.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",

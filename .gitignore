@@ -15,6 +15,7 @@ coverage/
 # firebase emulator
 *-debug.log
 .firebase/
+/.emulator-data/
 
 # Claude Code worktrees (full repo copies used as scratch space)
 /.claude/

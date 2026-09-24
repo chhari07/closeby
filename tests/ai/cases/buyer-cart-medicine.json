@@ -1,0 +1,29 @@
+{
+  "id": "buyer-cart-medicine",
+  "helper": "buyerCartDraft",
+  "description": "Symptom-style requests map to the OTC products (bukhar = fever, khansi = cough).",
+  "asRole": "buyer",
+  "request": {
+    "input": "bukhar ki dawai aur khansi ki dawai",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "paracetamol"
+        ]
+      },
+      {
+        "anyOf": [
+          "cough"
+        ]
+      }
+    ],
+    "expectMaxItems": 2
+  },
+  "manualCheck": "Expect Paracetamol and Cough Syrup, nothing else."
+}

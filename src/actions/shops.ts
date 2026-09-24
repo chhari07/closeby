@@ -13,6 +13,7 @@ import {
 import type { ShopDoc, Locality } from "@/types";
 import type { z } from "zod";
 import type { ActionResult } from "./types";
+import { cache } from "react";
 
 function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc {
   return {
@@ -32,13 +33,18 @@ function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc 
   };
 }
 
+/** Dashboard layout + page both ask for the shop: one Firestore read per request (see getMe). */
 export async function getMyShop(): Promise<ShopDoc | null> {
+  return getMyShopOncePerRequest();
+}
+
+const getMyShopOncePerRequest = cache(async (): Promise<ShopDoc | null> => {
   const userId = await requireUserId();
   const snap = await adminDb().collection("shops").where("ownerId", "==", userId).limit(1).get();
   if (snap.empty) return null;
   const doc = snap.docs[0]!;
   return shopFromDoc(doc.id, doc.data());
-}
+});
 
 async function ensureDraftShop(userId: string): Promise<string> {
   const existing = await adminDb().collection("shops").where("ownerId", "==", userId).limit(1).get();

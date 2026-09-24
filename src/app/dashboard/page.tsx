@@ -10,6 +10,7 @@ import {
   Settings,
   ArrowRight,
   IndianRupee,
+  ChartColumn,
 } from "lucide-react";
 import { getMyShop } from "@/actions/shops";
 import { getLowStockProducts } from "@/actions/products";
@@ -119,6 +120,11 @@ export default async function DashboardHomePage() {
             href="/dashboard/orders"
             label="View all orders"
             Icon={ClipboardList}
+          />
+          <ActionLink
+            href="/dashboard/reports"
+            label="Sales & reports"
+            Icon={ChartColumn}
           />
           <ActionLink
             href="/dashboard/inventory"

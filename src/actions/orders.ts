@@ -9,6 +9,7 @@ import { isValidTransition, isTerminal, type Actor } from "@/lib/orders/transiti
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { ActionResult } from "./types";
 import type { OrderDoc, OrderItem, OrderStatus } from "@/types";
+import { invalidateCatalog } from "@/lib/catalog";
 
 export interface PlaceOrderRejection {
   reason: string;
@@ -221,6 +222,7 @@ export async function placeOrder(
     throw err;
   }
 
+  invalidateCatalog(shopId); // stock was reserved
   return { ok: true, data: { orderId: orderRef.id } };
 }
 
@@ -334,6 +336,8 @@ export async function transitionOrder(
   if (!toParsed.success) return { ok: false, error: "Invalid order status" };
   if (!reasonParsed.success) return { ok: false, error: "Reason is too long" };
 
+  /** Set inside the transaction when a reject/cancel puts stock back, so the cached catalog is refreshed. */
+  let stockReturnedTo: string | null = null;
   const orderRef = adminDb().collection("orders").doc(orderId);
 
   // Read the current status, check it against the transition map, and write
@@ -389,6 +393,7 @@ export async function transitionOrder(
         : [];
 
       const now = Date.now();
+      if (productDocs.length > 0) stockReturnedTo = order.shopId;
       productDocs.forEach((doc, i) => {
         if (!doc.exists) return; // product was deleted since the order
         const stock = (doc.data()?.stock as number | undefined) ?? 0;
@@ -426,6 +431,7 @@ export async function transitionOrder(
     throw err;
   }
 
+  if (stockReturnedTo) invalidateCatalog(stockReturnedTo);
   return { ok: true };
 }
 

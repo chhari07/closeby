@@ -1,0 +1,44 @@
+{
+  "id": "buyer-cart-long-list",
+  "helper": "buyerCartDraft",
+  "description": "A long spoken-style list of 20 things must be covered in one cart, not cut short.",
+  "asRole": "buyer",
+  "request": {
+    "input": "2 kg aata, 1 kg cheeni, chai patti, doodh, 6 ande, 1 kg pyaz, 1 kg aloo, 1 kg tamatar, haldi, jeera, namak, sarson ka tel, 2 maggi, 1 parle g, 1 frooti, dettol, 2 notebook, 1 pen, toothpaste, nahane ka sabun",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectMinItems": 18,
+    "expectItems": [
+      {
+        "anyOf": [
+          "atta"
+        ]
+      },
+      {
+        "anyOf": [
+          "sugar"
+        ]
+      },
+      {
+        "anyOf": [
+          "tea"
+        ]
+      },
+      {
+        "anyOf": [
+          "maggi"
+        ]
+      },
+      {
+        "anyOf": [
+          "notebook"
+        ]
+      }
+    ]
+  },
+  "manualCheck": "Paste the list. Expect ~20 product cards from one shop, and the note says everything is available (or names only what's missing)."
+}

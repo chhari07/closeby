@@ -1,0 +1,25 @@
+{
+  "id": "buyer-cart-exact-qty",
+  "helper": "buyerCartDraft",
+  "description": "An explicit quantity is kept exactly.",
+  "asRole": "buyer",
+  "request": {
+    "input": "3 packet Parle-G",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "parle"
+        ],
+        "qty": 3
+      }
+    ],
+    "expectMaxItems": 1
+  },
+  "manualCheck": "Expect one card: Parle-G ×3."
+}

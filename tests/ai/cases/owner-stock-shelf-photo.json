@@ -1,0 +1,13 @@
+{
+  "id": "owner-stock-shelf-photo",
+  "helper": "stockDraft",
+  "description": "Shelf photos (Step 3.1): packs in the photos should come back as structured rows, with brand/size read off the pack.",
+  "asRole": "shop_owner",
+  "request": {
+    "input": "",
+    "images": ["__image__:test-shop/images/toor-dal-arhar.jpg", "__image__:test-shop/images/parle-g.jpg"],
+    "shopId": "__fixture_shop_id__"
+  },
+  "expect": { "status": 200, "outputSchemaOk": true },
+  "manualCheck": "In Inventory → Add with AI → Shelf photo, add the same two photos: expect a Tata Sampann Toor Dal row and a Parle-G row, prices marked yellow unless an MRP was readable."
+}

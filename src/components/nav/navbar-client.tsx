@@ -55,8 +55,8 @@ export function NavbarClient({
             : "bg-forest border-white/10"
         )}
       >
-        <div className="mx-auto flex h-14 max-w-4xl items-center justify-between px-4">
-          <Link href={homeHref} aria-label="CloseBy home" className="flex items-center">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-6 px-4">
+          <Link href={homeHref} aria-label="CloseBy home" className="flex shrink-0 items-center">
             <Logo tone="light" className="h-9" priority />
           </Link>
 
@@ -72,7 +72,7 @@ export function NavbarClient({
           )}
 
           {signedIn && (
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 items-center gap-1">
               {role && (
                 <nav className="hidden items-center gap-1 sm:flex">
                   {items.map((item) => {
@@ -89,9 +89,10 @@ export function NavbarClient({
                           active && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
                         )}
                       >
-                        <Link href={item.href}>
+                        {/* Icon-only until lg so six tabs never crowd the logo; label as tooltip. */}
+                        <Link href={item.href} aria-label={item.label} title={item.label}>
                           <Icon className="size-4" />
-                          {item.label}
+                          <span className="hidden lg:inline">{item.label}</span>
                           {item.badge === "cart" && cartCount > 0 && (
                             <span className="bg-primary text-primary-foreground absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full text-[10px]">
                               {cartCount}
@@ -103,7 +104,7 @@ export function NavbarClient({
                   })}
                 </nav>
               )}
-              {name && <span className="text-cream/70 hidden text-sm sm:inline">{name}</span>}
+              {name && <span className="text-cream/70 ml-2 hidden max-w-32 truncate text-sm xl:inline">{name}</span>}
               <Button
                 variant="ghost"
                 size="icon"

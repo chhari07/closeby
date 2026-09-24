@@ -1,0 +1,17 @@
+{
+  "id": "buyer-cart-off-topic",
+  "helper": "buyerCartDraft",
+  "description": "A request that isn't shopping (train ticket) is declined, not turned into a cart.",
+  "asRole": "buyer",
+  "request": {
+    "input": "book me a train ticket to Bhopal for tomorrow",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectApprovalIdNull": true
+  },
+  "manualCheck": "Expect no cart and a polite 'I can only help with shopping' style note."
+}

@@ -2,16 +2,26 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Check, X } from "lucide-react";
+import { Loader2, Sparkles, Check, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { confirmApproval, rejectApproval } from "@/actions/ai";
+
+interface StockLine {
+  productId: string;
+  name: string;
+  unit: string;
+  ordered: number;
+  available: number;
+  shortBy: number;
+}
 
 interface AdviceResponse {
   approvalId: string;
   decision: "ACCEPT" | "REJECT";
   confidence: number;
   summary: string;
+  stock?: StockLine[];
 }
 
 type Stage = "idle" | "loading" | "result" | "error";
@@ -122,6 +132,7 @@ export function OrderAiSuggestion({
         <span className="text-muted-foreground">{Math.round(advice!.confidence * 100)}% confident</span>
       </div>
       <p>{advice!.summary}</p>
+      <StockShortfall lines={advice!.stock ?? []} />
       <div className="flex gap-2">
         <Button size="sm" disabled={busy} onClick={confirm}>
           {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
@@ -131,6 +142,42 @@ export function OrderAiSuggestion({
           <X className="size-3.5" /> Ignore
         </Button>
       </div>
+    </div>
+  );
+}
+
+/** Which ordered products the shop can't fully cover, and by how much. */
+function StockShortfall({ lines }: { lines: StockLine[] }) {
+  if (lines.length === 0) return null;
+  const short = lines.filter((l) => l.shortBy > 0);
+  if (short.length === 0) {
+    return <p className="text-muted-foreground">All {lines.length} products are in stock.</p>;
+  }
+  return (
+    <div className="border-destructive/30 bg-destructive/5 rounded-md border p-2">
+      <p className="text-destructive mb-1.5 flex items-center gap-1.5 font-medium">
+        <AlertTriangle className="size-3.5" />
+        {short.length} of {lines.length} product{lines.length === 1 ? "" : "s"} short on stock
+      </p>
+      <ul className="flex flex-col gap-1">
+        {short.map((l) => (
+          <li key={l.productId} className="flex items-baseline justify-between gap-2">
+            <span className="min-w-0 truncate">
+              {l.name} <span className="text-muted-foreground">({l.unit})</span>
+            </span>
+            <span className="shrink-0 tabular-nums">
+              {l.available === 0 ? (
+                <span className="text-destructive">Out of stock · need {l.ordered}</span>
+              ) : (
+                <>
+                  Ordered {l.ordered} · have {l.available} ·{" "}
+                  <span className="text-destructive">short {l.shortBy}</span>
+                </>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

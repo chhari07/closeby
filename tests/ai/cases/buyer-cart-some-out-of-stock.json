@@ -1,0 +1,32 @@
+{
+  "id": "buyer-cart-some-out-of-stock",
+  "helper": "buyerCartDraft",
+  "description": "An item the shop lists but has 0 stock of (Cream Roll) is left out and named; the in-stock one is added.",
+  "asRole": "buyer",
+  "request": {
+    "input": "white bread aur cream roll",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "bread"
+        ]
+      }
+    ],
+    "expectNoItems": [
+      "cream roll"
+    ],
+    "expectSummaryMentions": [
+      [
+        "cream roll",
+        "roll"
+      ]
+    ]
+  },
+  "manualCheck": "Expect only White Bread in the cart; the note says Cream Roll isn't available."
+}

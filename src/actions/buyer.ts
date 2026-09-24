@@ -2,20 +2,26 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { getNearbyShops } from "@/lib/geo/nearby-shops";
+import { getNearbyShops, listAllShops } from "@/lib/geo/nearby-shops";
+import { ANY_DISTANCE } from "@/lib/geo/radius";
 import { toGeohash } from "@/lib/geo/geohash";
-import type { GeoPoint, Locality, NearbyShopResult } from "@/types";
+import type { GeoPoint, Locality, NearbyShopResult, ShopListResult } from "@/types";
 import type { ActionResult } from "./types";
+import { getShopCatalog } from "@/lib/catalog";
 
 export async function listLocalities(): Promise<Locality[]> {
   const snap = await adminDb().collection("localities").get();
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Locality, "id">) }));
 }
 
+/** "Any distance" lists every live shop (location optional); a km radius
+ *  needs the buyer's location and lists only open shops inside it. */
 export async function findNearbyShops(
-  origin: GeoPoint,
+  origin: GeoPoint | null,
   radiusInM: number
-): Promise<NearbyShopResult[]> {
+): Promise<ShopListResult[]> {
+  if (radiusInM === ANY_DISTANCE) return listAllShops(origin);
+  if (!origin) return [];
   return getNearbyShops(origin, radiusInM);
 }
 
@@ -56,16 +62,10 @@ export async function searchNearbyShopsByProduct(
 
   const matches = await Promise.all(
     nearby.map(async (result) => {
-      const snap = await adminDb()
-        .collection("shops")
-        .doc(result.shop.id)
-        .collection("products")
-        .where("inStock", "==", true)
-        .limit(MAX_PRODUCTS_PER_SHOP)
-        .get();
+      // Cached catalog (src/lib/catalog.ts): a search costs no Firestore reads once warm.
+      const inStock = (await getShopCatalog(result.shop.id)).filter((p) => p.inStock).slice(0, MAX_PRODUCTS_PER_SHOP);
 
-      const hit = snap.docs.find((d) => {
-        const p = d.data();
+      const hit = inStock.find((p) => {
         const nameHit = typeof p.name === "string" && p.name.toLowerCase().includes(q);
         const aliasHit =
           Array.isArray(p.aliases) &&
@@ -73,7 +73,7 @@ export async function searchNearbyShopsByProduct(
         return nameHit || aliasHit;
       });
       if (!hit) return null;
-      return { ...result, matchedProductName: hit.data().name as string };
+      return { ...result, matchedProductName: hit.name };
     })
   );
 

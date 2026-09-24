@@ -124,6 +124,7 @@ export function ProductCatalog({ shop, products }: { shop: ShopDoc; products: Pr
       unit: product.unit,
       price: product.price,
       qty: 1,
+      imageUrl: product.imageUrl ?? null,
     });
   }
 

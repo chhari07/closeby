@@ -1,0 +1,37 @@
+{
+  "id": "buyer-cart-mixed-language",
+  "helper": "buyerCartDraft",
+  "description": "Hinglish with brand names: exactly the three things asked for, nothing extra.",
+  "asRole": "buyer",
+  "request": {
+    "input": "2 packet Maggi aur ek Frooti, saath me 1 Dairy Milk bhi",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "maggi"
+        ],
+        "qty": 2
+      },
+      {
+        "anyOf": [
+          "frooti"
+        ],
+        "qty": 1
+      },
+      {
+        "anyOf": [
+          "dairy milk"
+        ],
+        "qty": 1
+      }
+    ],
+    "expectMaxItems": 3
+  },
+  "manualCheck": "Expect 3 cards: Maggi ×2, Frooti ×1, Dairy Milk ×1."
+}

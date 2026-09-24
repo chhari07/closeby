@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { LayoutGrid, ClipboardList, Package, Settings, MapPin, ShoppingCart, User } from "lucide-react";
+import { LayoutGrid, ClipboardList, Package, Settings, MapPin, ShoppingCart, User, ChartColumn } from "lucide-react";
 import type { Role } from "@/types";
 
 export interface NavItem {
@@ -23,6 +23,7 @@ export const ROLE_NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/dashboard", label: "Dashboard", icon: LayoutGrid },
     { href: "/dashboard/orders", label: "Orders", icon: ClipboardList },
     { href: "/dashboard/inventory", label: "Inventory", icon: Package },
+    { href: "/dashboard/reports", label: "Reports", icon: ChartColumn },
     { href: "/dashboard/settings", label: "Settings", icon: Settings },
     { href: "/profile", label: "Profile", icon: User },
   ],

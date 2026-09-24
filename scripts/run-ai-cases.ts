@@ -16,6 +16,14 @@
  * AI_TEST_ORDER_ID / AI_TEST_OTHER_SHOP_ORDER_ID are set to real ids from
  * your own dev database — there is no way to fabricate a valid owned shop
  * or order from outside the app.
+ *
+ * CASES=buyer-cart npm run test:ai   runs only cases whose id contains that text.
+ *
+ * buyerCartDraft cases can also check WHAT the AI put in the cart (the route
+ * returns `cart`): expectItems / expectNoItems match product names
+ * case-insensitively, so they're written against the seeded test shop in
+ * test-shop/inventory.json. Every case's `manualCheck` says what to look at
+ * when trying the same input by hand in the "Ask AI to shop" dialog.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -31,7 +39,52 @@ interface Case {
     outputSchemaOk?: boolean;
     expectApprovalIdNull?: boolean;
     expectNoPriceChangeToolCall?: boolean;
+    /** Each entry must match at least one cart item (name contains any of `anyOf`); `qty` checks that item's qty. */
+    expectItems?: { anyOf: string[]; qty?: number }[];
+    /** No cart item's name may contain any of these. */
+    expectNoItems?: string[];
+    expectMinItems?: number;
+    expectMaxItems?: number;
+    /** Every cart item's qty must be at most this. */
+    expectMaxQty?: number;
+    /** Each entry: the summary must contain at least one of these words. */
+    expectSummaryMentions?: string[][];
   };
+  manualCheck?: string;
+}
+
+interface CartItem {
+  name: string;
+  qty: number;
+}
+
+/** Content checks on a buyerCartDraft answer; returns the first problem found, or null. */
+function checkCart(expect: Case["expect"], data: Record<string, unknown> | undefined): string | null {
+  const cart = (data?.cart as { items?: CartItem[] } | null | undefined) ?? null;
+  const items = cart?.items ?? [];
+  const names = items.map((i) => `${i.name} ×${i.qty}`).join(", ") || "(empty cart)";
+  const has = (i: CartItem, words: string[]) => words.some((w) => i.name.toLowerCase().includes(w.toLowerCase()));
+
+  for (const want of expect.expectItems ?? []) {
+    const hit = items.find((i) => has(i, want.anyOf));
+    if (!hit) return `expected an item matching [${want.anyOf.join(" | ")}], got: ${names}`;
+    if (want.qty !== undefined && hit.qty !== want.qty) return `expected ${hit.name} ×${want.qty}, got ×${hit.qty}`;
+  }
+  const banned = items.find((i) => has(i, expect.expectNoItems ?? []));
+  if (banned) return `cart should not contain "${banned.name}", got: ${names}`;
+  if (expect.expectMinItems !== undefined && items.length < expect.expectMinItems)
+    return `expected at least ${expect.expectMinItems} items, got ${items.length}: ${names}`;
+  if (expect.expectMaxItems !== undefined && items.length > expect.expectMaxItems)
+    return `expected at most ${expect.expectMaxItems} items, got ${items.length}: ${names}`;
+  const tooMany = items.find((i) => expect.expectMaxQty !== undefined && i.qty > expect.expectMaxQty);
+  if (tooMany) return `qty too high: ${tooMany.name} ×${tooMany.qty} (max ${expect.expectMaxQty})`;
+
+  const summary = String(data?.summary ?? "").toLowerCase();
+  for (const words of expect.expectSummaryMentions ?? []) {
+    if (!words.some((w) => summary.includes(w.toLowerCase())))
+      return `summary should mention [${words.join(" | ")}], got: "${data?.summary ?? ""}"`;
+  }
+  return null;
 }
 
 const CASES_DIR = path.join(process.cwd(), "tests/ai/cases");
@@ -44,9 +97,21 @@ const FIXTURES: Record<string, string | undefined> = {
   __fixture_other_shops_order_id__: process.env.AI_TEST_OTHER_SHOP_ORDER_ID,
 };
 
+/** "__image__:test-shop/images/x.jpg" -> a data: URL of that file (shelf-photo cases). */
+function resolveImage(value: unknown): unknown {
+  if (typeof value !== "string" || !value.startsWith("__image__:")) return value;
+  const file = value.slice("__image__:".length);
+  const type = file.endsWith(".png") ? "image/png" : file.endsWith(".webp") ? "image/webp" : "image/jpeg";
+  return `data:${type};base64,${readFileSync(path.join(process.cwd(), file)).toString("base64")}`;
+}
+
 function resolveFixtures(request: Record<string, unknown>): Record<string, unknown> | null {
   const resolved: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(request)) {
+    if (Array.isArray(value)) {
+      resolved[key] = value.map(resolveImage);
+      continue;
+    }
     if (typeof value === "string" && value in FIXTURES) {
       const real = FIXTURES[value];
       if (!real) return null; // fixture not provided — skip this case
@@ -89,6 +154,14 @@ async function runCase(file: string): Promise<"pass" | "fail" | "skip"> {
     console.log(`FAIL  ${testCase.id} — expected approvalId to be null, got ${JSON.stringify(body.data?.approvalId)}`);
     return "fail";
   }
+  if (res.ok) {
+    const problem = checkCart(testCase.expect, body.data);
+    if (problem) {
+      console.log(`FAIL  ${testCase.id} — ${problem}`);
+      if (testCase.manualCheck) console.log(`      manual check: ${testCase.manualCheck}`);
+      return "fail";
+    }
+  }
 
   console.log(`PASS  ${testCase.id} — ${testCase.description}`);
   return "pass";
@@ -102,7 +175,8 @@ async function main() {
     );
   }
 
-  const files = readdirSync(CASES_DIR).filter((f) => f.endsWith(".json"));
+  const only = process.env.CASES;
+  const files = readdirSync(CASES_DIR).filter((f) => f.endsWith(".json") && (!only || f.includes(only)));
   const results = { pass: 0, fail: 0, skip: 0 };
 
   for (const file of files) {

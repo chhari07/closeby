@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Mic, MicOff, Loader2, Sparkles, Send } from "lucide-react";
+import { Mic, MicOff, Loader2, Sparkles, Send, Pencil, Store, Package } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,17 +17,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { useVoiceInput, VOICE_LANGUAGES, type VoiceLanguage } from "@/lib/hooks/use-voice-input";
 import { useCartStore, type CartItem } from "@/lib/store/cart";
 import { confirmApproval, rejectApproval } from "@/actions/ai";
+import { formatPaise } from "@/lib/money";
 
-interface DraftResponse {
-  approvalId: string | null;
-  summary: string;
-}
+type DraftItem = CartItem;
 
 interface CartDraft {
   shopId: string;
   shopName: string;
-  items: CartItem[];
+  items: DraftItem[];
 }
+
+interface DraftResponse {
+  approvalId: string | null;
+  summary: string;
+  cart: CartDraft | null;
+}
+
+const toCartItem = ({ productId, name, unit, price, qty, imageUrl }: DraftItem): CartItem => ({
+  productId,
+  name,
+  unit,
+  price,
+  qty,
+  imageUrl: imageUrl ?? null,
+});
 
 type Stage = "input" | "loading" | "result" | "error";
 
@@ -104,12 +117,24 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
     }
     const applied = (result.data as { draft?: CartDraft } | undefined)?.draft;
     if (applied) {
-      cart.applyDraftItems(applied.shopId, applied.shopName, applied.items);
+      cart.applyDraftItems(applied.shopId, applied.shopName, applied.items.map(toCartItem));
       toast.success(`Added ${applied.items.length} item(s) to your cart`);
     }
     setOpen(false);
     reset();
     router.push("/cart");
+  }
+
+  /** Back to the typing box with the same request, so the buyer can tweak
+   *  it and ask again. The old draft is dropped — a fresh one replaces it. */
+  async function edit() {
+    if (draft?.approvalId) {
+      setBusy(true);
+      await rejectApproval(draft.approvalId);
+      setBusy(false);
+    }
+    setDraft(null);
+    setStage("input");
   }
 
   async function reject() {
@@ -141,8 +166,9 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
         <DialogHeader>
           <DialogTitle>Tell the AI what you need</DialogTitle>
           <DialogDescription>
-            Type or use your voice — e.g. &quot;dal chawal for 4&quot;. It only ever drafts a cart; nothing is
-            ordered until you confirm.
+            Type or use your voice — e.g. &quot;dal chawal for 4&quot;, or read out your whole list; the mic
+            keeps listening through pauses (up to 3 minutes). It only ever drafts a cart; nothing is ordered
+            until you confirm.
           </DialogDescription>
         </DialogHeader>
 
@@ -204,6 +230,9 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
                 mic again — or just type your request above.
               </p>
             )}
+            {voice.status === "error" && voice.errorMessage && (
+              <p className="text-destructive text-xs">{voice.errorMessage}</p>
+            )}
             {voice.status === "unsupported" && (
               <p className="text-muted-foreground text-xs">
                 Voice input isn&apos;t available in this browser — typing works the same.
@@ -221,7 +250,47 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
 
         {stage === "result" && draft && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm">{draft.summary}</p>
+            {draft.cart && draft.cart.items.length > 0 ? (
+              <div className="rounded-lg border">
+                <div className="flex items-center gap-2 border-b px-3 py-2">
+                  <Store className="text-muted-foreground size-4" />
+                  <span className="text-sm font-medium">{draft.cart.shopName}</span>
+                  <span className="text-muted-foreground ml-auto text-xs">
+                    {draft.cart.items.length} item{draft.cart.items.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <ul className="max-h-72 divide-y overflow-y-auto">
+                  {draft.cart.items.map((item) => (
+                    <li key={item.productId} className="flex items-center gap-3 px-3 py-2">
+                      <div className="bg-muted flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md">
+                        {item.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.imageUrl} alt="" className="size-full object-cover" />
+                        ) : (
+                          <Package className="text-muted-foreground size-5" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{item.name}</p>
+                        <p className="text-muted-foreground text-xs">
+                          {item.unit} · {formatPaise(item.price)} × {item.qty}
+                        </p>
+                      </div>
+                      <span className="text-sm font-medium">{formatPaise(item.price * item.qty)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex justify-between border-t px-3 py-2 text-sm font-medium">
+                  <span>Total</span>
+                  <span>{formatPaise(draft.cart.items.reduce((sum, i) => sum + i.price * i.qty, 0))}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm">{draft.summary}</p>
+            )}
+            {draft.cart && draft.cart.items.length > 0 && (
+              <p className="text-muted-foreground text-xs">{draft.summary}</p>
+            )}
             {!draft.approvalId && (
               <p className="text-muted-foreground text-xs">Nothing to add yet — try rephrasing, or browse shops.</p>
             )}
@@ -239,6 +308,10 @@ export function AiCartDialog({ lat, lng }: { lat: number | null; lng: number | n
           )}
           {stage === "result" && draft?.approvalId && (
             <>
+              <Button variant="ghost" className="min-h-11" disabled={busy} onClick={edit}>
+                <Pencil className="size-4" />
+                Edit
+              </Button>
               <Button variant="outline" className="min-h-11" disabled={busy} onClick={reject}>
                 {busy ? <Loader2 className="size-4 animate-spin" /> : "Not this"}
               </Button>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Minus, Package, Plus, Trash2, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/buyer/back-button";
 import { useCartStore } from "@/lib/store/cart";
@@ -37,6 +37,14 @@ export function CartView() {
       <div className="flex flex-col divide-y p-4">
         {items.map((item) => (
           <div key={item.productId} className="flex items-center gap-3 py-3">
+            <div className="bg-muted flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md">
+              {item.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.imageUrl} alt="" className="size-full object-cover" />
+              ) : (
+                <Package className="text-muted-foreground size-5" />
+              )}
+            </div>
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{item.name}</p>
               <p className="text-muted-foreground text-xs">

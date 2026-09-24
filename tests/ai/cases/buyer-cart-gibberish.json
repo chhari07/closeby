@@ -1,0 +1,17 @@
+{
+  "id": "buyer-cart-gibberish",
+  "helper": "buyerCartDraft",
+  "description": "Nonsense input must not produce a cart.",
+  "asRole": "buyer",
+  "request": {
+    "input": "asdfgh qwerty zxcvbn",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectApprovalIdNull": true
+  },
+  "manualCheck": "Expect no cards and a 'Try again' button, with a short reason."
+}

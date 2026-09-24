@@ -3,6 +3,27 @@
   "helper": "buyerCartDraft",
   "description": "Devanagari Hindi input (not just Hinglish) must be understood the same way.",
   "asRole": "buyer",
-  "request": { "input": "मुझे चावल और दाल चाहिए, दो लोगों के लिए", "lat": 28.6139, "lng": 77.209 },
-  "expect": { "status": 200, "outputSchemaOk": true }
+  "request": {
+    "input": "मुझे चावल और दाल चाहिए, दो लोगों के लिए",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "dal"
+        ]
+      },
+      {
+        "anyOf": [
+          "rice"
+        ]
+      }
+    ],
+    "expectMaxItems": 3
+  },
+  "manualCheck": "Type in Hindi script. Expect the same result as the Hinglish case: 1 dal + 1 rice."
 }

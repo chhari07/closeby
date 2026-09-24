@@ -1,0 +1,30 @@
+{
+  "id": "buyer-cart-quantity-sense",
+  "helper": "buyerCartDraft",
+  "description": "'For 4 people' should give a household-sized amount, not a bulk order.",
+  "asRole": "buyer",
+  "request": {
+    "input": "dal chawal for 4 people, one dinner",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "dal"
+        ]
+      },
+      {
+        "anyOf": [
+          "rice"
+        ]
+      }
+    ],
+    "expectMaxQty": 2,
+    "expectMaxItems": 3
+  },
+  "manualCheck": "Expect 1 dal + 1 rice, quantity 1 (maybe 2) each — not 5 packs, not every dal."
+}

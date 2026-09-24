@@ -7,6 +7,7 @@ export interface CartItem {
   unit: string;
   price: number; // paise
   qty: number;
+  imageUrl?: string | null;
 }
 
 interface PendingSwitch {

@@ -1,0 +1,13 @@
+{
+  "id": "buyer-cart-no-location",
+  "helper": "buyerCartDraft",
+  "description": "No lat/lng: refused up front with a clear message, no AI call spent.",
+  "asRole": "buyer",
+  "request": {
+    "input": "dal chawal"
+  },
+  "expect": {
+    "status": 400
+  },
+  "manualCheck": "The dialog itself blocks this ('Set your location first'); this checks the server refuses too."
+}

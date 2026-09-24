@@ -123,7 +123,7 @@ export function InventoryTable({
             className="min-h-9"
             onClick={() => setAiImporting(true)}
           >
-            <Sparkles className="size-4" /> Voice / text update
+            <Sparkles className="size-4" /> Add with AI
           </Button>
           <Button size="sm" className="min-h-9" onClick={() => setAdding(true)}>
             <Plus className="size-4" /> Add product

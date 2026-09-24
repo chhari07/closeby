@@ -113,6 +113,9 @@ export interface ProductDoc {
    *  the search index Step 4's AI helpers will read from. Optional so
    *  products created before this field existed keep working unchanged. */
   aliases?: string[];
+  /** When stock last went UP (added, imported, or edited to a higher count).
+   *  Optional: products from before this field existed have no record. */
+  lastRestockedAt?: number;
   updatedAt: number;
 }
 
@@ -161,6 +164,13 @@ export interface OrderDoc {
 export interface NearbyShopResult {
   shop: ShopDoc;
   distanceInM: number;
+}
+
+/** A browse-list row: distance is null when the buyer hasn't set a location
+ *  or the shop has none on file ("Any distance" lists those too). */
+export interface ShopListResult {
+  shop: ShopDoc;
+  distanceInM: number | null;
 }
 
 export const SHOP_TYPES: { value: ShopType; label: string }[] = [

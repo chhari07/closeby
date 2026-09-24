@@ -11,6 +11,7 @@ import {
 } from "@/lib/validation/product";
 import { rupeesToPaise } from "@/lib/money";
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
+import { getShopCatalog, invalidateCatalog } from "@/lib/catalog";
 import type { ActionResult } from "./types";
 import type { ProductDoc } from "@/types";
 
@@ -23,14 +24,9 @@ async function requireUserId(): Promise<string> {
   return userId;
 }
 
+/** The shop's full product list, from the shared cache (see src/lib/catalog.ts). */
 export async function getShopProducts(shopId: string): Promise<ProductDoc[]> {
-  const snap = await adminDb()
-    .collection("shops")
-    .doc(shopId)
-    .collection("products")
-    .orderBy("updatedAt", "desc")
-    .get();
-  return snap.docs.map((d) => ({ id: d.id, shopId, ...(d.data() as Omit<ProductDoc, "id" | "shopId">) }));
+  return getShopCatalog(shopId);
 }
 
 /** Stock at or below this counts as "low" for the dashboard warning. */
@@ -84,12 +80,13 @@ export async function bulkSetInStock(
     for (const doc of docs) {
       const stock = (doc.data()?.stock as number | undefined) ?? 0;
       if (stock <= 0) {
-        batch.update(doc.ref, { stock: 1, inStock: true, updatedAt: Date.now() });
+        batch.update(doc.ref, { stock: 1, inStock: true, lastRestockedAt: Date.now(), updatedAt: Date.now() });
       }
     }
   }
 
   await batch.commit();
+  invalidateCatalog(shopId);
   return { ok: true };
 }
 
@@ -120,11 +117,13 @@ export async function addProduct(
       ...(description ? { description } : {}),
       ...(mrp ? { mrp } : {}),
       ...(aliases?.length ? { aliases } : {}),
+      ...(stock > 0 ? { lastRestockedAt: Date.now() } : {}),
       updatedAt: Date.now(),
     });
     tx.update(shopRef, { itemCount: FieldValue.increment(1), updatedAt: Date.now() });
   });
 
+  invalidateCatalog(shopId);
   return { ok: true, data: { productId: ref.id } };
 }
 
@@ -188,6 +187,7 @@ export async function bulkImportProducts(
         ...(parsed.data.description ? { description: parsed.data.description } : {}),
         ...(parsed.data.mrp ? { mrp: rupeesToPaise(parsed.data.mrp) } : {}),
         ...(parsed.data.aliases?.length ? { aliases: parsed.data.aliases } : {}),
+        ...(parsed.data.stock > 0 ? { lastRestockedAt: now } : {}),
         updatedAt: now,
       },
     });
@@ -214,6 +214,7 @@ export async function bulkImportProducts(
     ...row.data,
   }));
 
+  invalidateCatalog(shopId);
   return { ok: true, data: { products, failed } };
 }
 
@@ -236,16 +237,16 @@ export async function updateProduct(
   for (const [key, value] of Object.entries(parsed.data)) {
     if (value !== undefined) update[key] = value;
   }
+  const ref = adminDb().collection("shops").doc(shopId).collection("products").doc(productId);
   if (parsed.data.stock !== undefined) {
     update.inStock = parsed.data.stock > 0;
+    // Stock going up = a restock; the Reports page shows when that last happened.
+    const current = (await ref.get()).data()?.stock;
+    if (typeof current !== "number" || parsed.data.stock > current) update.lastRestockedAt = update.updatedAt;
   }
 
-  await adminDb()
-    .collection("shops")
-    .doc(shopId)
-    .collection("products")
-    .doc(productId)
-    .update(update);
+  await ref.update(update);
+  invalidateCatalog(shopId);
   return { ok: true };
 }
 
@@ -271,6 +272,7 @@ export async function deleteProduct(shopId: string, productId: string): Promise<
     tx.update(shopRef, { itemCount: FieldValue.increment(-1), updatedAt: Date.now() });
   });
 
+  invalidateCatalog(shopId);
   return { ok: true };
 }
 
@@ -293,5 +295,6 @@ export async function bulkSetProductImages(
     }
     await batch.commit();
   }
+  invalidateCatalog(shopId);
   return { ok: true };
 }

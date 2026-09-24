@@ -1,0 +1,34 @@
+{
+  "id": "buyer-cart-hindi-aliases",
+  "helper": "buyerCartDraft",
+  "description": "Pure Hindi kitchen words resolve through aliases (haldi = turmeric, jeera = cumin, namak = salt).",
+  "asRole": "buyer",
+  "request": {
+    "input": "haldi, jeera aur namak",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "turmeric"
+        ]
+      },
+      {
+        "anyOf": [
+          "cumin"
+        ]
+      },
+      {
+        "anyOf": [
+          "salt"
+        ]
+      }
+    ],
+    "expectMaxItems": 3
+  },
+  "manualCheck": "Expect Turmeric Powder, Cumin Seeds, Iodised Salt."
+}

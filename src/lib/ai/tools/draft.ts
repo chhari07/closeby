@@ -5,6 +5,7 @@ import { adminDb } from "@/lib/firebase/admin";
 import { ownsShop } from "@/lib/auth/guards";
 import type { OrderDoc } from "@/types";
 import type { ToolContext } from "./context";
+import { normalizeStockItems } from "@/lib/ai/stock-items";
 
 /**
  * Draft tools (roadmap §2.3 / §2.5). These are the ONLY things the AI is
@@ -61,7 +62,14 @@ export function draftCartTool(ctx: ToolContext) {
         return JSON.stringify({ approvalId: null, itemCount: 0, unavailable: items.map((i) => i.productId) });
       }
 
-      const verified: { productId: string; name: string; unit: string; price: number; qty: number }[] = [];
+      const verified: {
+        productId: string;
+        name: string;
+        unit: string;
+        price: number;
+        qty: number;
+        imageUrl: string | null;
+      }[] = [];
       const unavailable: string[] = [];
       for (const item of items) {
         const pDoc = await adminDb()
@@ -81,6 +89,7 @@ export function draftCartTool(ctx: ToolContext) {
           unit: p.unit,
           price: p.price,
           qty: Math.min(item.qty, p.stock),
+          imageUrl: p.imageUrl ?? null,
         });
       }
 
@@ -106,9 +115,11 @@ export function draftStockListTool(ctx: ToolContext) {
         .array(
           z.object({
             name: z.string().trim().min(1).max(100),
+            brand: z.string().trim().max(60).optional(),
             unit: z.string().trim().min(1).max(20),
             category: z.string().trim().min(1).max(40).default("General"),
             price: z.number().positive().max(100000).describe("rupees, decimal"),
+            mrp: z.number().positive().max(100000).optional().describe("rupees, as printed on the pack"),
             stock: z.number().int().min(0).max(100000),
             confidence: z.number().min(0).max(1),
           }),
@@ -118,8 +129,9 @@ export function draftStockListTool(ctx: ToolContext) {
     }),
     run: async ({ shopId, items }) => {
       if (shopId !== ctx.shopId) throw new Error("Not your shop");
-      const approvalId = await createApproval(ctx.userId, shopId, "draftStockList", { shopId, items });
-      return JSON.stringify({ approvalId, itemCount: items.length });
+      const cleaned = normalizeStockItems(items);
+      const approvalId = await createApproval(ctx.userId, shopId, "draftStockList", { shopId, items: cleaned });
+      return JSON.stringify({ approvalId, itemCount: cleaned.length, items: cleaned });
     },
   });
 }

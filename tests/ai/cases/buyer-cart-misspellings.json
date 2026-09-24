@@ -1,0 +1,39 @@
+{
+  "id": "buyer-cart-misspellings",
+  "helper": "buyerCartDraft",
+  "description": "Common misspellings still find the right products.",
+  "asRole": "buyer",
+  "request": {
+    "input": "chawl, daal, chinni aur dudh chahiye",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "rice"
+        ]
+      },
+      {
+        "anyOf": [
+          "dal"
+        ]
+      },
+      {
+        "anyOf": [
+          "sugar"
+        ]
+      },
+      {
+        "anyOf": [
+          "milk"
+        ]
+      }
+    ],
+    "expectMaxItems": 4
+  },
+  "manualCheck": "Expect rice, a dal, sugar and milk — one of each, not every dal the shop has."
+}

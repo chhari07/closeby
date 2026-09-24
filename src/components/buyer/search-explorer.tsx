@@ -10,7 +10,8 @@ import { LocationPickerDialog } from "./location-picker-dialog";
 import { ShopCard } from "./shop-card";
 import { ShopListSkeleton } from "./shop-list-skeleton";
 import { Input } from "@/components/ui/input";
-import { SHOP_TYPES, type Locality, type NearbyShopResult } from "@/types";
+import { SHOP_TYPES, type Locality, type ShopListResult } from "@/types";
+import { ANY_DISTANCE } from "@/lib/geo/radius";
 
 /** Debounce before firing the product-alias search — a search box that
  *  hits the server on every keystroke isn't the goal here. */
@@ -26,17 +27,19 @@ export function SearchExplorer({
   const { lat, lng, radiusM, gateOpen, setGateOpen, handleGps, handleLocality } =
     useBuyerLocation(initialLocalities, initialLocation);
   const [loading, setLoading] = useState(false);
-  const [all, setAll] = useState<NearbyShopResult[]>([]);
+  const [all, setAll] = useState<ShopListResult[]>([]);
   const [query, setQuery] = useState("");
   const [productMatches, setProductMatches] = useState<ProductMatchResult[]>([]);
 
+  const canList = (!!lat && !!lng) || radiusM === ANY_DISTANCE;
+
   useEffect(() => {
-    if (!lat || !lng) return;
+    if (!canList) return;
     setLoading(true);
-    findNearbyShops({ lat, lng }, radiusM)
+    findNearbyShops(lat && lng ? { lat, lng } : null, radiusM)
       .then(setAll)
       .finally(() => setLoading(false));
-  }, [lat, lng, radiusM]);
+  }, [lat, lng, radiusM, canList]);
 
   // Hindi/Hinglish/English product search (Step 4.1) — a name/type match
   // above is instant (already-loaded shops filtered client-side); a
@@ -66,7 +69,7 @@ export function SearchExplorer({
   // that matched only by product/alias is added with its matched item
   // shown on the card. De-duped by shop id.
   const seen = new Set(nameMatches.map((r) => r.shop.id));
-  const filtered: (NearbyShopResult & { matchedProductName?: string })[] = [...nameMatches];
+  const filtered: (ShopListResult & { matchedProductName?: string })[] = [...nameMatches];
   for (const m of productMatches) {
     if (seen.has(m.shop.id)) continue;
     seen.add(m.shop.id);
@@ -92,21 +95,21 @@ export function SearchExplorer({
           />
         </div>
 
-        {(!lat || !lng) && (
+        {!canList && (
           <p className="text-muted-foreground py-16 text-center text-sm">
             Set your location first to search nearby shops.
           </p>
         )}
 
-        {lat && lng && loading && <ShopListSkeleton />}
+        {canList && loading && <ShopListSkeleton />}
 
-        {lat && lng && !loading && filtered.length === 0 && (
+        {canList && !loading && filtered.length === 0 && (
           <p className="text-muted-foreground py-16 text-center text-sm">
             {q ? `No shops matching "${query}"${radiusM === 0 ? "" : ` within ${radiusM / 1000} km`}.` : "No open shops nearby right now."}
           </p>
         )}
 
-        {lat && lng && !loading && filtered.length > 0 && (
+        {canList && !loading && filtered.length > 0 && (
           <div className="flex flex-col gap-2">
             {filtered.map((r) => (
               <ShopCard key={r.shop.id} {...r} />

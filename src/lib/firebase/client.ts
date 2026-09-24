@@ -1,9 +1,9 @@
 "use client";
 
 import { initializeApp, getApps, getApp, type FirebaseOptions, type FirebaseApp } from "firebase/app";
-import { getFirestore, type Firestore } from "firebase/firestore";
-import { getStorage, type FirebaseStorage } from "firebase/storage";
-import { getAuth, type Auth } from "firebase/auth";
+import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
+import { connectStorageEmulator, getStorage, type FirebaseStorage } from "firebase/storage";
+import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
 
 const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,6 +13,13 @@ const firebaseConfig: FirebaseOptions = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
+
+/**
+ * Set by `npm run dev:emu` (scripts/dev-emulator.sh): talk to the local
+ * Firebase emulators instead of the real project. Never set in production.
+ */
+const useEmulator = process.env.NEXT_PUBLIC_FIREBASE_EMULATOR === "1";
+const EMULATOR_HOST = "127.0.0.1";
 
 /** False until the NEXT_PUBLIC_FIREBASE_* keys are set in .env.local. */
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
@@ -31,16 +38,25 @@ function getFirebaseApp(): FirebaseApp {
 }
 
 export function getDb(): Firestore {
-  _db ??= getFirestore(getFirebaseApp());
+  if (!_db) {
+    _db = getFirestore(getFirebaseApp());
+    if (useEmulator) connectFirestoreEmulator(_db, EMULATOR_HOST, 8080);
+  }
   return _db;
 }
 
 export function getFirebaseStorage(): FirebaseStorage {
-  _storage ??= getStorage(getFirebaseApp());
+  if (!_storage) {
+    _storage = getStorage(getFirebaseApp());
+    if (useEmulator) connectStorageEmulator(_storage, EMULATOR_HOST, 9199);
+  }
   return _storage;
 }
 
 export function getFirebaseAuth(): Auth {
-  _auth ??= getAuth(getFirebaseApp());
+  if (!_auth) {
+    _auth = getAuth(getFirebaseApp());
+    if (useEmulator) connectAuthEmulator(_auth, `http://${EMULATOR_HOST}:9099`, { disableWarnings: true });
+  }
   return _auth;
 }

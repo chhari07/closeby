@@ -14,6 +14,7 @@ import { addressSchema, type AddressInput } from "@/lib/validation/order";
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import type { ActionResult } from "./types";
 import type { UserDoc, SavedAddress } from "@/types";
+import { cache } from "react";
 
 /** Thrown inside the transaction to signal "role is already set" without a retry. */
 const ROLE_ALREADY_SET = "ROLE_ALREADY_SET";
@@ -71,7 +72,16 @@ export async function completeOnboarding(
   return { ok: true };
 }
 
+/**
+ * The navbar, the page's auth guard and the page itself each call getMe() —
+ * cache() makes that one Firestore read per request instead of 2–3.
+ * (A "use server" file may only export async functions, hence the wrapper.)
+ */
 export async function getMe(): Promise<(UserDoc & { id: string }) | null> {
+  return getMeOncePerRequest();
+}
+
+const getMeOncePerRequest = cache(async (): Promise<(UserDoc & { id: string }) | null> => {
   const { userId } = await auth();
   if (!userId) return null;
   const doc = await adminDb().collection("users").doc(userId).get();
@@ -93,7 +103,7 @@ export async function getMe(): Promise<(UserDoc & { id: string }) | null> {
     createdAt:
       typeof createdAt === "number" ? createdAt : (createdAt?.toMillis() ?? 0),
   };
-}
+});
 
 export async function updateProfile(
   input: UpdateProfileInput,

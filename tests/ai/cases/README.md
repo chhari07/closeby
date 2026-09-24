@@ -7,7 +7,7 @@ running server and a real `ANTHROPIC_API_KEY`, so they're driven by
 `scripts/run-ai-cases.ts` (`npm run test:ai`) instead, same as the roadmap's
 "run weekly and before releases" intent.
 
-## Status: 12 seeded, not the full 30+
+## Status: 24 cases (18 buyer AI cart), target 30+
 
 This is the foundation set — one or more cases per required category from
 §2.8 (Hindi/Hinglish, out-of-stock, prompt injection, cross-user id attempts,
@@ -25,13 +25,22 @@ inventing more JSON files against a model nobody has called yet.
   "helper": "hello | buyerCartDraft | orderAdvice | stockDraft",
   "description": "what this checks",
   "asRole": "buyer | shop_owner",
-  "request": { "input": "...", "shopId": "...", "orderId": "...", "lat": 0, "lng": 0 },
+  "request": { "input": "...", "images": ["__image__:test-shop/images/x.jpg"], "shopId": "...", "orderId": "...", "lat": 0, "lng": 0 },
   "expect": {
     "status": 200,
     "outputSchemaOk": true
-  }
+  },
+  "manualCheck": "what to look for when trying it by hand"
 }
 ```
+
+Optional `buyerCartDraft` content checks (matched case-insensitively against
+the cart's product names — written for the seeded shop in `test-shop/`):
+`expectItems: [{ "anyOf": ["dal"], "qty": 1 }]`, `expectNoItems`,
+`expectMinItems`, `expectMaxItems`, `expectMaxQty`, and
+`expectSummaryMentions: [["juice"]]`. Run a subset with
+`CASES=buyer npm run test:ai`; the manual version of the buyer cases is
+`tests/ai/buyer-cart-manual-checklist.md`.
 
 `expect.status` is the HTTP status the route should return; `outputSchemaOk`
 means the JSON body's `data` should validate against that helper's Zod

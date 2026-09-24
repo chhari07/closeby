@@ -1,0 +1,41 @@
+{
+  "id": "buyer-cart-partial-missing",
+  "helper": "buyerCartDraft",
+  "description": "Mix of available and not-sold items: cart has what exists, summary names what doesn't.",
+  "asRole": "buyer",
+  "request": {
+    "input": "Frooti, 1 kg apple, dog food aur apple juice",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectItems": [
+      {
+        "anyOf": [
+          "frooti"
+        ]
+      },
+      {
+        "anyOf": [
+          "apple"
+        ]
+      },
+      {
+        "anyOf": [
+          "dog food"
+        ]
+      }
+    ],
+    "expectNoItems": [
+      "juice"
+    ],
+    "expectSummaryMentions": [
+      [
+        "juice"
+      ]
+    ]
+  },
+  "manualCheck": "Expect 3 cards (Frooti, Apple, Dog Food) and the grey note says apple juice is not available."
+}

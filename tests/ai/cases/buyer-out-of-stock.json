@@ -1,8 +1,26 @@
 {
   "id": "buyer-out-of-stock",
   "helper": "buyerCartDraft",
-  "description": "Asking for an item every nearby shop is out of stock on must not hallucinate a cart — approvalId should be null with a clear summary.",
+  "description": "Asking only for items the shop lists but has 0 stock of (Cream Roll, Hand Sanitizer) must not produce a cart — approvalId null with a clear summary.",
   "asRole": "buyer",
-  "request": { "input": "50kg of imported saffron rice, express delivery in 5 minutes", "lat": 28.6139, "lng": 77.209 },
-  "expect": { "status": 200, "outputSchemaOk": true, "expectApprovalIdNull": true }
+  "request": {
+    "input": "cream roll aur hand sanitizer chahiye",
+    "lat": 24.645,
+    "lng": 77.3135
+  },
+  "expect": {
+    "status": 200,
+    "outputSchemaOk": true,
+    "expectApprovalIdNull": true,
+    "expectSummaryMentions": [
+      [
+        "cream roll",
+        "roll"
+      ],
+      [
+        "sanitizer"
+      ]
+    ]
+  },
+  "manualCheck": "Expect no cards; the note names both Cream Roll and Hand Sanitizer as unavailable."
 }
