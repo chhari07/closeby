@@ -86,6 +86,8 @@ export const RESTOCK_WITHIN_DAYS = 7;
 export const FAST_SELLER_30D = 15;
 /** No sales in 30 days and at least this much stock = slow item. */
 export const SLOW_MIN_STOCK = 5;
+/** "Hasn't sold" only means something once the shop has this much order history. */
+export const SLOW_MIN_HISTORY_DAYS = 14;
 export const MAX_PRICE_RISE = 0.1;
 export const MAX_PRICE_CUT = 0.15;
 
@@ -94,7 +96,8 @@ const MAX_PER_KIND = { restock: 8, price: 5, slow: 5 } as const;
 /** Rounds paise to whole rupees. */
 const toRupee = (paise: number) => Math.round(paise / 100) * 100;
 
-export function ideaCandidates(facts: ProductFacts[]): IdeaCandidate[] {
+/** `historyDays`: how long the shop has been taking orders (age of its oldest order). */
+export function ideaCandidates(facts: ProductFacts[], historyDays: number): IdeaCandidate[] {
   const restock = facts
     .filter((f) => f.sold30d > 0 && (f.stock === 0 || (f.daysLeft ?? Infinity) <= RESTOCK_WITHIN_DAYS))
     .sort((a, b) => (a.daysLeft ?? 0) - (b.daysLeft ?? 0))
@@ -122,7 +125,8 @@ export function ideaCandidates(facts: ProductFacts[]): IdeaCandidate[] {
     }))
     .filter((c) => c.priceRange![1] > c.priceRange![0]);
 
-  const slow = facts
+  // A brand-new shop has sold nothing yet — that doesn't make everything "slow".
+  const slow = (historyDays >= SLOW_MIN_HISTORY_DAYS ? facts : [])
     .filter((f) => f.sold30d === 0 && f.stock >= SLOW_MIN_STOCK)
     .sort((a, b) => b.stock * b.price - a.stock * a.price)
     .slice(0, MAX_PER_KIND.slow)

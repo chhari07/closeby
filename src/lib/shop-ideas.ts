@@ -29,7 +29,10 @@ export async function loadIdeaCandidates(shopId: string): Promise<IdeaCandidate[
     `,
     getShopCatalog(shopId),
   ]);
-  return ideaCandidates(productFacts(products, orderRows.map(toOrder), Date.now()));
+  const orders = orderRows.map(toOrder);
+  const now = Date.now();
+  const historyDays = orders.length ? (now - orders[orders.length - 1]!.createdAt) / 86_400_000 : 0;
+  return ideaCandidates(productFacts(products, orders, now), historyDays);
 }
 
 const rupees = (paise: number) => formatPaise(paise).replace(/\.00$/, "");

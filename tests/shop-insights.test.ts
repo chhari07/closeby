@@ -62,7 +62,7 @@ describe("ideaCandidates", () => {
     product("steady", { stock: 100 }), // sells, plenty of stock, no MRP -> nothing
   ];
   const facts = productFacts(products, dailyOrders([["bulb", 3], ["cable", 1], ["steady", 1]]), NOW);
-  const cands = ideaCandidates(facts);
+  const cands = ideaCandidates(facts, 30);
   const kinds = Object.fromEntries(cands.map((c) => [c.facts.productId, c.kind]));
 
   it("picks restock, price and slow candidates only where the numbers say so (one per product)", () => {
@@ -79,6 +79,11 @@ describe("ideaCandidates", () => {
     expect(cable.priceRange).toEqual([19900, 21900]); // +10% = ₹218.90 -> ₹219, under MRP ₹349
     expect(clampIdea(cable, { price: 99900 }).price).toBe(21900);
     expect(clampIdea(cable, { price: 19900 }).price).toBeUndefined(); // no change = no idea
+  });
+
+  it("doesn't call anything slow for a shop with under two weeks of orders", () => {
+    expect(ideaCandidates(facts, 3).map((c) => c.kind)).not.toContain("slow");
+    expect(ideaCandidates(productFacts(products, [], NOW), 0)).toEqual([]);
   });
 
   it("caps slow-item price cuts at 15%", () => {
