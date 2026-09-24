@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { Phone, Clock } from "lucide-react";
-import { adminDb } from "@/lib/firebase/admin";
+import { findShop } from "@/lib/db/rows";
 import { getShopProducts } from "@/actions/products";
 import type { ShopDoc } from "@/types";
 import { SHOP_TYPES } from "@/types";
@@ -10,26 +10,10 @@ import { BackButton } from "@/components/buyer/back-button";
 export const dynamic = "force-dynamic";
 
 async function getLiveShop(shopId: string): Promise<ShopDoc | null> {
-  const doc = await adminDb().collection("shops").doc(shopId).get();
-  if (!doc.exists) return null;
-  const data = doc.data()!;
+  const shop = await findShop(shopId);
   // Rule: draft shops must 404 for buyers, even by direct URL.
-  if (data.status !== "live") return null;
-  return {
-    id: doc.id,
-    ownerId: data.ownerId,
-    status: data.status,
-    onboardingStep: data.onboardingStep,
-    isOpen: data.isOpen,
-    type: data.type,
-    name: data.name,
-    phone: data.phone,
-    hours: data.hours,
-    location: data.location,
-    itemCount: data.itemCount ?? 0,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-  };
+  if (!shop || shop.status !== "live") return null;
+  return shop;
 }
 
 export default async function ShopPage({ params }: { params: Promise<{ shopId: string }> }) {

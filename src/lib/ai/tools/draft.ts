@@ -1,15 +1,15 @@
 import "server-only";
 import { z } from "zod";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { findOrder, findShop, toProduct } from "@/lib/db/rows";
 import { ownsShop } from "@/lib/auth/guards";
-import type { OrderDoc } from "@/types";
 import type { ToolContext } from "./context";
 import { normalizeStockItems } from "@/lib/ai/stock-items";
 
 /**
  * Draft tools (roadmap §2.3 / §2.5). These are the ONLY things the AI is
- * allowed to write, and all they ever write is a `pending` doc in
+ * allowed to write, and all they ever write is a `pending` row in
  * `approvals` — never orders/products/shops directly. A human has to
  * Confirm before src/actions/ai.ts's confirmApproval calls a real,
  * already-existing server action (which re-checks price/stock/ownership
@@ -24,18 +24,13 @@ async function createApproval(
   type: "draftCart" | "draftStockList" | "draftOrderAdvice",
   draft: unknown,
 ): Promise<string> {
-  const ref = adminDb().collection("approvals").doc();
   const now = Date.now();
-  await ref.set({
-    userId,
-    shopId: shopId ?? null,
-    type,
-    draft,
-    status: "pending",
-    createdAt: now,
-    expiresAt: now + APPROVAL_TTL_MS,
-  });
-  return ref.id;
+  const [row] = await db()`
+    insert into approvals (user_id, shop_id, type, draft, status, created_at, expires_at)
+    values (${userId}, ${shopId ?? null}, ${type}, ${db().json(draft as never)}, 'pending', ${now}, ${now + APPROVAL_TTL_MS})
+    returning id
+  `;
+  return row!.id as string;
 }
 
 export function draftCartTool(ctx: ToolContext) {
@@ -56,9 +51,9 @@ export function draftCartTool(ctx: ToolContext) {
         .max(30),
     }),
     run: async ({ shopId, items }) => {
-      const shopDoc = await adminDb().collection("shops").doc(shopId).get();
-      const shopName = shopDoc.data()?.name as string | undefined;
-      if (!shopDoc.exists || shopDoc.data()?.status !== "live" || !shopName) {
+      const shop = await findShop(shopId);
+      const shopName = shop?.name;
+      if (!shop || shop.status !== "live" || !shopName) {
         return JSON.stringify({ approvalId: null, itemCount: 0, unavailable: items.map((i) => i.productId) });
       }
 
@@ -71,15 +66,13 @@ export function draftCartTool(ctx: ToolContext) {
         imageUrl: string | null;
       }[] = [];
       const unavailable: string[] = [];
+      const productRows = await db()`
+        select * from products where shop_id = ${shopId} and id = any(${items.map((i) => i.productId)})
+      `;
+      const productsById = new Map(productRows.map((r) => [r.id as string, toProduct(r)]));
       for (const item of items) {
-        const pDoc = await adminDb()
-          .collection("shops")
-          .doc(shopId)
-          .collection("products")
-          .doc(item.productId)
-          .get();
-        const p = pDoc.data();
-        if (!pDoc.exists || !p || !p.inStock || p.stock < 1) {
+        const p = productsById.get(item.productId);
+        if (!p || !p.inStock || p.stock < 1) {
           unavailable.push(item.productId);
           continue;
         }
@@ -147,9 +140,8 @@ export function draftOrderAdviceTool(ctx: ToolContext) {
       confidence: z.number().min(0).max(1),
     }),
     run: async ({ orderId, decision, reason, confidence }) => {
-      const orderDoc = await adminDb().collection("orders").doc(orderId).get();
-      if (!orderDoc.exists) throw new Error("Order not found");
-      const order = orderDoc.data() as OrderDoc;
+      const order = await findOrder(orderId);
+      if (!order) throw new Error("Order not found");
       const owned = await ownsShop(ctx.userId, order.shopId);
       if (!owned) throw new Error("Not your order");
 

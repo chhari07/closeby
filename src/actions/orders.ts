@@ -1,9 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
-import { adminDb } from "@/lib/firebase/admin";
+import type postgres from "postgres";
+import { db } from "@/lib/db/client";
+import { findOrder, findShop, toOrder, toProduct, toShop, toUser } from "@/lib/db/rows";
 import { placeOrderSchema, type PlaceOrderInput } from "@/lib/validation/order";
 import { isValidTransition, isTerminal, type Actor } from "@/lib/orders/transitions";
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
@@ -61,32 +62,31 @@ export async function placeOrder(
   }
   const items = [...merged.values()];
 
-  const shopRef = adminDb().collection("shops").doc(shopId);
-  const userRef = adminDb().collection("users").doc(userId);
-  const productRefs = items.map((i) =>
-    shopRef.collection("products").doc(i.productId),
-  );
-  const orderRef = adminDb().collection("orders").doc();
+  let orderId = "";
 
-  // Read, validate and write inside one transaction — without this, a shop
-  // closing or a product being re-priced/deleted in the gap between "check"
-  // and "write" (e.g. two buyers checking out at once, or the owner editing
-  // inventory mid-checkout) can silently slip through a plain read-then-write.
+  // Read, validate and write inside one transaction, with the shop and
+  // product rows locked (FOR UPDATE) — without this, a shop closing or a
+  // product being re-priced/deleted in the gap between "check" and "write"
+  // (e.g. two buyers checking out at once, or the owner editing inventory
+  // mid-checkout) can silently slip through a plain read-then-write.
   try {
-    await adminDb().runTransaction(async (tx) => {
-      const [shopSnap, userSnap, ...productSnaps] = await Promise.all([
-        tx.get(shopRef),
-        tx.get(userRef),
-        ...productRefs.map((ref) => tx.get(ref)),
-      ]);
+    await db().begin(async (tx) => {
+      const [shopRow] = await tx`select * from shops where id = ${shopId} for update`;
+      const [userRow] = await tx`select * from users where id = ${userId}`;
+      const productRows = await tx`
+        select * from products
+        where shop_id = ${shopId} and id = any(${items.map((i) => i.productId)})
+        for update
+      `;
+      const productsById = new Map(productRows.map((r) => [r.id as string, toProduct(r)]));
 
-      if (!shopSnap.exists) {
+      if (!shopRow) {
         throw new PlaceOrderAbort({
           error: "This shop no longer exists",
           detail: { reason: "shop_gone" },
         });
       }
-      const shop = shopSnap.data()!;
+      const shop = toShop(shopRow);
       if (shop.status !== "live" || shop.isOpen !== true) {
         throw new PlaceOrderAbort({
           error:
@@ -108,26 +108,24 @@ export async function placeOrder(
       }[] = [];
       const orderItems: OrderItem[] = [];
       const stockUpdates: {
-        ref: FirebaseFirestore.DocumentReference;
+        productId: string;
         stock: number;
         qty: number;
       }[] = [];
 
-      for (let i = 0; i < productSnaps.length; i++) {
-        const doc = productSnaps[i]!;
-        const wanted = items[i]!;
-        if (!doc.exists) {
+      for (const wanted of items) {
+        const p = productsById.get(wanted.productId);
+        if (!p) {
           removedProductIds.push(wanted.productId);
           continue;
         }
-        const p = doc.data()!;
         if (p.inStock === false || (p.stock ?? 0) <= 0) {
           removedProductIds.push(wanted.productId);
           continue;
         }
         if (p.price !== wanted.price) {
           priceChanges.push({
-            productId: doc.id,
+            productId: p.id,
             name: p.name,
             newPrice: p.price,
           });
@@ -135,15 +133,15 @@ export async function placeOrder(
         }
         if (p.stock < wanted.qty) {
           stockLimits.push({
-            productId: doc.id,
+            productId: p.id,
             name: p.name,
             available: p.stock,
           });
           continue;
         }
-        stockUpdates.push({ ref: doc.ref, stock: p.stock, qty: wanted.qty });
+        stockUpdates.push({ productId: p.id, stock: p.stock, qty: wanted.qty });
         orderItems.push({
-          productId: doc.id,
+          productId: p.id,
           name: p.name,
           unit: p.unit,
           price: p.price,
@@ -174,42 +172,47 @@ export async function placeOrder(
 
       const itemTotal = orderItems.reduce((sum, i) => sum + i.price * i.qty, 0);
       const now = Date.now();
-      const userData = userSnap.data();
-
-      const order: Omit<OrderDoc, "id"> = {
-        buyerId: userId,
-        shopId,
-        shopName: shop.name,
-        buyerName: userData?.name ?? "",
-        buyerPhone: userData?.phone ?? "",
-        items: orderItems,
-        itemTotal,
-        status: "PLACED",
-        timeline: [{ status: "PLACED", at: now, by: "buyer" }],
-        deliveryAddress: {
-          line1: deliveryAddress.line1,
-          landmark: deliveryAddress.landmark ?? "",
-          lat: deliveryAddress.lat,
-          lng: deliveryAddress.lng,
-        },
-        paymentMethod,
-        stockReserved: true,
-        createdAt: now,
-        updatedAt: now,
-      };
+      const user = userRow ? toUser(userRow) : null;
 
       // Reserve the stock: reject/cancel returns it (see transitionOrder).
       for (const u of stockUpdates) {
         const left = u.stock - u.qty;
-        tx.update(u.ref, { stock: left, inStock: left > 0, updatedAt: now });
+        await tx`
+          update products set stock = ${left}, in_stock = ${left > 0}, updated_at = ${now}
+          where id = ${u.productId} and shop_id = ${shopId}
+        `;
       }
-      tx.set(orderRef, order);
+      const [orderRow] = await tx`
+        insert into orders ${tx({
+          buyerId: userId,
+          shopId,
+          shopName: shop.name,
+          buyerName: user?.name ?? "",
+          buyerPhone: user?.phone ?? "",
+          items: tx.json(orderItems as unknown as postgres.JSONValue),
+          itemTotal,
+          status: "PLACED",
+          timeline: tx.json([{ status: "PLACED", at: now, by: "buyer" }]),
+          deliveryAddress: tx.json({
+            line1: deliveryAddress.line1,
+            landmark: deliveryAddress.landmark ?? "",
+            lat: deliveryAddress.lat,
+            lng: deliveryAddress.lng,
+          }),
+          paymentMethod,
+          stockReserved: true,
+          createdAt: now,
+          updatedAt: now,
+        })}
+        returning id
+      `;
+      orderId = orderRow!.id as string;
       // Step 1.3 running counters — read on the dashboard instead of
-      // scanning the orders collection.
-      tx.update(shopRef, {
-        orderCount: FieldValue.increment(1),
-        pendingOrderCount: FieldValue.increment(1),
-      });
+      // scanning the orders table.
+      await tx`
+        update shops set order_count = order_count + 1, pending_order_count = pending_order_count + 1
+        where id = ${shopId}
+      `;
     });
   } catch (err) {
     if (err instanceof PlaceOrderAbort) {
@@ -223,20 +226,19 @@ export async function placeOrder(
   }
 
   invalidateCatalog(shopId); // stock was reserved
-  return { ok: true, data: { orderId: orderRef.id } };
+  return { ok: true, data: { orderId } };
 }
 
 export async function getOrder(orderId: string): Promise<OrderDoc | null> {
   const { userId } = await auth();
   if (!userId) return null;
-  const doc = await adminDb().collection("orders").doc(orderId).get();
-  if (!doc.exists) return null;
-  const data = doc.data()!;
-  if (data.buyerId !== userId) {
-    const shopDoc = await adminDb().collection("shops").doc(data.shopId).get();
-    if (shopDoc.data()?.ownerId !== userId) return null;
+  const order = await findOrder(orderId);
+  if (!order) return null;
+  if (order.buyerId !== userId) {
+    const shop = await findShop(order.shopId);
+    if (shop?.ownerId !== userId) return null;
   }
-  return { id: doc.id, ...(data as Omit<OrderDoc, "id">) };
+  return order;
 }
 
 export interface ReorderResult {
@@ -261,28 +263,26 @@ export async function reorderFromOrder(orderId: string): Promise<ActionResult<Re
   const limited = rateLimit("reorder", userId);
   if (!limited.ok) return { ok: false, error: rateLimitMessage(limited.retryAfterSec) };
 
-  const orderDoc = await adminDb().collection("orders").doc(orderId).get();
-  if (!orderDoc.exists) return { ok: false, error: "Order not found" };
-  const order = orderDoc.data() as OrderDoc;
+  const order = await findOrder(orderId);
+  if (!order) return { ok: false, error: "Order not found" };
   if (order.buyerId !== userId) return { ok: false, error: "Not your order" };
 
-  const shopDoc = await adminDb().collection("shops").doc(order.shopId).get();
-  const shopName = shopDoc.data()?.name as string | undefined;
-  if (!shopDoc.exists || shopDoc.data()?.status !== "live" || !shopName) {
+  const shop = await findShop(order.shopId);
+  const shopName = shop?.name;
+  if (!shop || shop.status !== "live" || !shopName) {
     return { ok: false, error: "This shop isn't available right now" };
   }
+
+  const productRows = await db()`
+    select * from products where shop_id = ${order.shopId} and id = any(${order.items.map((i) => i.productId)})
+  `;
+  const productsById = new Map(productRows.map((r) => [r.id as string, toProduct(r)]));
 
   const items: ReorderResult["items"] = [];
   const unavailable: ReorderResult["unavailable"] = [];
   for (const line of order.items) {
-    const pDoc = await adminDb()
-      .collection("shops")
-      .doc(order.shopId)
-      .collection("products")
-      .doc(line.productId)
-      .get();
-    const p = pDoc.data();
-    if (!pDoc.exists || !p || !p.inStock || p.stock < 1) {
+    const p = productsById.get(line.productId);
+    if (!p || !p.inStock || p.stock < 1) {
       unavailable.push({ productId: line.productId, name: line.name });
       continue;
     }
@@ -338,26 +338,24 @@ export async function transitionOrder(
 
   /** Set inside the transaction when a reject/cancel puts stock back, so the cached catalog is refreshed. */
   let stockReturnedTo: string | null = null;
-  const orderRef = adminDb().collection("orders").doc(orderId);
 
-  // Read the current status, check it against the transition map, and write
-  // the new status atomically — otherwise two concurrent transitions (a
-  // rapid double-click, or the buyer cancelling the instant the shop
-  // accepts) can both pass validation against the same stale read.
+  // Read the current status (row locked FOR UPDATE), check it against the
+  // transition map, and write the new status atomically — otherwise two
+  // concurrent transitions (a rapid double-click, or the buyer cancelling
+  // the instant the shop accepts) can both pass validation against the same
+  // stale read.
   try {
-    await adminDb().runTransaction(async (tx) => {
-      const orderDoc = await tx.get(orderRef);
-      if (!orderDoc.exists) throw new TransitionAbort("Order not found");
-      const order = orderDoc.data() as OrderDoc;
+    await db().begin(async (tx) => {
+      const [orderRow] = await tx`select * from orders where id = ${orderId} for update`;
+      if (!orderRow) throw new TransitionAbort("Order not found");
+      const order = toOrder(orderRow);
 
       let by: Actor;
       if (order.buyerId === userId) {
         by = "buyer";
       } else {
-        const shopDoc = await tx.get(
-          adminDb().collection("shops").doc(order.shopId),
-        );
-        if (shopDoc.data()?.ownerId !== userId) {
+        const [shopRow] = await tx`select owner_id from shops where id = ${order.shopId}`;
+        if (shopRow?.ownerId !== userId) {
           throw new TransitionAbort("You do not have access to this order");
         }
         by = "shop";
@@ -373,55 +371,43 @@ export async function transitionOrder(
         throw new TransitionAbort("A reason is required for this action");
       }
 
-      // Reads must precede writes in a transaction, so load the products
-      // before touching anything when stock has to be handed back.
+      const now = Date.now();
+
+      // Hand reserved stock back on reject/cancel. Products deleted since the
+      // order simply don't match the update.
       const releasesStock =
         (toParsed.data === "REJECTED" || toParsed.data === "CANCELLED") &&
         order.stockReserved;
-      const productDocs = releasesStock
-        ? await Promise.all(
-            order.items.map((item) =>
-              tx.get(
-                adminDb()
-                  .collection("shops")
-                  .doc(order.shopId)
-                  .collection("products")
-                  .doc(item.productId),
-              ),
-            ),
-          )
-        : [];
+      if (releasesStock) {
+        stockReturnedTo = order.shopId;
+        for (const item of order.items) {
+          await tx`
+            update products set stock = stock + ${item.qty}, in_stock = true, updated_at = ${now}
+            where id = ${item.productId} and shop_id = ${order.shopId}
+          `;
+        }
+      }
 
-      const now = Date.now();
-      if (productDocs.length > 0) stockReturnedTo = order.shopId;
-      productDocs.forEach((doc, i) => {
-        if (!doc.exists) return; // product was deleted since the order
-        const stock = (doc.data()?.stock as number | undefined) ?? 0;
-        tx.update(doc.ref, {
-          stock: stock + order.items[i]!.qty,
-          inStock: true,
-          updatedAt: now,
-        });
-      });
-
-      const update: Record<string, unknown> = {
+      const entry = {
         status: toParsed.data,
-        updatedAt: now,
-        timeline: FieldValue.arrayUnion({
-          status: toParsed.data,
-          at: now,
-          by,
-          ...(reasonParsed.data ? { reason: reasonParsed.data } : {}),
-        }),
+        at: now,
+        by,
+        ...(reasonParsed.data ? { reason: reasonParsed.data } : {}),
       };
-      if (reasonParsed.data) update.rejectionReason = reasonParsed.data;
-
-      tx.update(orderRef, update);
+      await tx`
+        update orders set
+          status = ${toParsed.data},
+          updated_at = ${now},
+          timeline = timeline || ${tx.json([entry])},
+          rejection_reason = coalesce(${reasonParsed.data ?? null}, rejection_reason)
+        where id = ${orderId}
+      `;
       // Step 1.3: the order just left the "pending" bucket for good.
       if (!isTerminal(order.status) && isTerminal(toParsed.data)) {
-        tx.update(adminDb().collection("shops").doc(order.shopId), {
-          pendingOrderCount: FieldValue.increment(-1),
-        });
+        await tx`
+          update shops set pending_order_count = greatest(pending_order_count - 1, 0)
+          where id = ${order.shopId}
+        `;
       }
     });
   } catch (err) {
@@ -460,18 +446,15 @@ function startOfTodayIST(now = Date.now()): number {
 export async function getTodayOrderCounts(shopId: string): Promise<TodayStats> {
   const { userId } = await auth();
   if (!userId) throw new Error("Not signed in");
-  const shopDoc = await adminDb().collection("shops").doc(shopId).get();
-  if (!shopDoc.exists || shopDoc.data()?.ownerId !== userId) {
+  const shop = await findShop(shopId);
+  if (!shop || shop.ownerId !== userId) {
     throw new Error("You do not own this shop");
   }
 
   const dayStart = startOfTodayIST();
-  const snap = await adminDb()
-    .collection("orders")
-    .where("shopId", "==", shopId)
-    .orderBy("createdAt", "desc")
-    .limit(500)
-    .get();
+  const rows = await db()`
+    select * from orders where shop_id = ${shopId} order by created_at desc limit 500
+  `;
 
   const counts: Record<OrderStatus, number> = {
     PLACED: 0,
@@ -484,8 +467,8 @@ export async function getTodayOrderCounts(shopId: string): Promise<TodayStats> {
   };
   let revenueToday = 0;
 
-  for (const doc of snap.docs) {
-    const order = doc.data() as OrderDoc;
+  for (const row of rows) {
+    const order = toOrder(row);
     const isOpen = !["COMPLETED", "REJECTED", "CANCELLED"].includes(
       order.status,
     );
@@ -520,54 +503,45 @@ export async function listMyOrders(cursor?: number): Promise<OrdersPage> {
   const { userId } = await auth();
   if (!userId) return { orders: [], nextCursor: null };
 
-  let q = adminDb()
-    .collection("orders")
-    .where("buyerId", "==", userId)
-    .orderBy("createdAt", "desc")
-    .limit(ORDERS_PAGE_SIZE);
-  if (cursor) q = q.startAfter(cursor);
-
-  const snap = await q.get();
-  const orders = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<OrderDoc, "id">),
-  }));
+  const rows = await db()`
+    select * from orders
+    where buyer_id = ${userId} ${cursor ? db()`and created_at < ${cursor}` : db()``}
+    order by created_at desc
+    limit ${ORDERS_PAGE_SIZE}
+  `;
+  const orders = rows.map(toOrder);
   const nextCursor =
     orders.length === ORDERS_PAGE_SIZE ? orders[orders.length - 1]!.createdAt : null;
   return { orders, nextCursor };
 }
 
 /**
- * The shop owner's orders, newest first, 20 at a time. Read through the
- * server so the dashboard works without a client-side Firebase session
- * (the live dashboard view uses a direct Firestore listener instead — see
- * src/app/dashboard/orders/page.tsx — and calls this only as a fallback).
+ * The shop owner's orders, newest first, `pageSize` (default 20) at a time.
+ * The live dashboard (src/app/dashboard/orders/page.tsx) re-reads its list
+ * through this whenever a live order signal arrives.
  */
 export async function listShopOrders(
   shopId: string,
   cursor?: number,
+  pageSize: number = ORDERS_PAGE_SIZE,
 ): Promise<ActionResult<OrdersPage>> {
   const { userId } = await auth();
   if (!userId) return { ok: false, error: "Not signed in" };
 
-  const shopDoc = await adminDb().collection("shops").doc(shopId).get();
-  if (!shopDoc.exists || shopDoc.data()?.ownerId !== userId) {
+  const shop = await findShop(shopId);
+  if (!shop || shop.ownerId !== userId) {
     return { ok: false, error: "You do not own this shop" };
   }
 
-  let q = adminDb()
-    .collection("orders")
-    .where("shopId", "==", shopId)
-    .orderBy("createdAt", "desc")
-    .limit(ORDERS_PAGE_SIZE);
-  if (cursor) q = q.startAfter(cursor);
-
-  const snap = await q.get();
-  const orders = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<OrderDoc, "id">),
-  }));
+  const limit = Math.min(Math.max(1, Math.floor(pageSize)), 200);
+  const rows = await db()`
+    select * from orders
+    where shop_id = ${shopId} ${cursor ? db()`and created_at < ${cursor}` : db()``}
+    order by created_at desc
+    limit ${limit}
+  `;
+  const orders = rows.map(toOrder);
   const nextCursor =
-    orders.length === ORDERS_PAGE_SIZE ? orders[orders.length - 1]!.createdAt : null;
+    orders.length === limit ? orders[orders.length - 1]!.createdAt : null;
   return { ok: true, data: { orders, nextCursor } };
 }

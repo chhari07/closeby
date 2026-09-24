@@ -12,7 +12,7 @@ const isPublicRoute = createRouteMatcher([
 
 // Role-based gating (onboarding-complete, buyer vs shop-owner, live-shop
 // checks) all live in lib/auth/guards.ts + individual layouts/pages, backed
-// by real Firestore reads. Clerk's default session token doesn't carry
+// by real database reads. Clerk's default session token doesn't carry
 // publicMetadata (would need a Dashboard-side "customize session token"
 // step we don't have), so middleware can only reliably tell "signed in or
 // not" — anything finer belongs at the resource level. This also matches

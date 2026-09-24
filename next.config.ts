@@ -5,11 +5,8 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "firebasestorage.googleapis.com" },
-      // Photos uploaded while running `npm run dev:emu` (Storage emulator). Dev only.
-      ...(process.env.NODE_ENV === "production"
-        ? []
-        : [{ protocol: "http" as const, hostname: "127.0.0.1", port: "9199" }]),
+      // Product photos in Supabase Storage (public bucket "product-images").
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
     ],
   },
   // Testing on a phone through a VS Code / Microsoft Dev Tunnel

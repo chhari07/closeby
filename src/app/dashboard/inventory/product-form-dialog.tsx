@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProductDoc } from "@/types";
 import { addProduct, updateProduct } from "@/actions/products";
-import { uploadProductImage } from "@/lib/firebase/upload";
+import { uploadProductImage } from "@/lib/supabase/upload";
 import { rupeesToPaise } from "@/lib/money";
 
 const formSchema = z.object({

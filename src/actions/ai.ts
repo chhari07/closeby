@@ -1,6 +1,7 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { toApproval } from "@/lib/db/rows";
 import { requireUserId, assertShopOwnership } from "@/lib/auth/guards";
 import { setHelperEnabled, getHelperStatusesForShop } from "@/lib/ai/settings";
 import { bulkImportProducts } from "@/actions/products";
@@ -17,24 +18,33 @@ import type { ApprovalDoc, AiHelperName } from "@/types/ai";
  */
 
 async function loadOwnPendingApproval(approvalId: string, userId: string) {
-  const ref = adminDb().collection("approvals").doc(approvalId);
-  const doc = await ref.get();
-  if (!doc.exists) return { ref, approval: null as null };
-  const approval = { id: doc.id, ...(doc.data() as Omit<ApprovalDoc, "id">) };
-  if (approval.userId !== userId) return { ref, approval: null };
-  return { ref, approval };
+  const [row] = await db()`select * from approvals where id = ${approvalId}`;
+  if (!row) return { approval: null };
+  const approval = toApproval(row);
+  if (approval.userId !== userId) return { approval: null };
+  return { approval };
+}
+
+async function decideApproval(
+  approvalId: string,
+  status: "approved" | "rejected" | "expired",
+  edited?: boolean,
+): Promise<void> {
+  await db()`
+    update approvals set status = ${status}, decided_at = ${Date.now()}, edited = ${edited ?? null}
+    where id = ${approvalId}
+  `;
 }
 
 export async function listMyApprovals(): Promise<ApprovalDoc[]> {
   const userId = await requireUserId();
-  const snap = await adminDb()
-    .collection("approvals")
-    .where("userId", "==", userId)
-    .where("status", "==", "pending")
-    .orderBy("createdAt", "desc")
-    .limit(20)
-    .get();
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ApprovalDoc, "id">) }));
+  const rows = await db()`
+    select * from approvals
+    where user_id = ${userId} and status = 'pending'
+    order by created_at desc
+    limit 20
+  `;
+  return rows.map(toApproval);
 }
 
 /**
@@ -48,11 +58,11 @@ export async function confirmApproval(
   edits?: { stockItems?: unknown[] },
 ): Promise<ActionResult<unknown>> {
   const userId = await requireUserId();
-  const { ref, approval } = await loadOwnPendingApproval(approvalId, userId);
+  const { approval } = await loadOwnPendingApproval(approvalId, userId);
   if (!approval) return { ok: false, error: "Approval not found" };
   if (approval.status !== "pending") return { ok: false, error: `Already ${approval.status}` };
   if (Date.now() > approval.expiresAt) {
-    await ref.update({ status: "expired", decidedAt: Date.now() });
+    await decideApproval(approvalId, "expired");
     return { ok: false, error: "This suggestion expired" };
   }
 
@@ -81,7 +91,7 @@ export async function confirmApproval(
   if (!result.ok) return result;
 
   // `edited` feeds the accept-rate numbers (3.4): approved as-is vs. corrected first.
-  await ref.update({ status: "approved", decidedAt: Date.now(), edited: Boolean(edits?.stockItems) });
+  await decideApproval(approvalId, "approved", Boolean(edits?.stockItems));
   // draftCart has no underlying action result to hand back (see above) — give
   // the caller the draft itself instead. draftOrderAdvice/draftStockList hand
   // back whatever transitionOrder/bulkImportProducts actually returned (e.g.
@@ -92,10 +102,10 @@ export async function confirmApproval(
 
 export async function rejectApproval(approvalId: string): Promise<ActionResult> {
   const userId = await requireUserId();
-  const { ref, approval } = await loadOwnPendingApproval(approvalId, userId);
+  const { approval } = await loadOwnPendingApproval(approvalId, userId);
   if (!approval) return { ok: false, error: "Approval not found" };
   if (approval.status !== "pending") return { ok: true };
-  await ref.update({ status: "rejected", decidedAt: Date.now() });
+  await decideApproval(approvalId, "rejected");
   return { ok: true };
 }
 

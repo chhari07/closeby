@@ -1,71 +1,41 @@
 import "server-only";
-import { geohashQueryBounds, distanceBetween } from "geofire-common";
-import { adminDb } from "@/lib/firebase/admin";
+import { distanceBetween } from "geofire-common";
+import { db } from "@/lib/db/client";
+import { toShop } from "@/lib/db/rows";
 import type { GeoPoint, NearbyShopResult, ShopDoc, ShopListResult } from "@/types";
 
-/** Page size per geohash-bound query. */
-const MAX_DOCS_PER_BOUND = 300;
-/** Safety cap on how many pages we'll page through a single bound —
- *  MAX_PAGES_PER_BOUND * MAX_DOCS_PER_BOUND shops in one geohash cell is
- *  far more than a hyperlocal search should ever see; this just stops a
- *  single bound from paging forever if something is very wrong. */
-const MAX_PAGES_PER_BOUND = 5;
+/** Cap for one proximity query — far more shops than a hyperlocal search should ever see. */
+const MAX_SHOPS = 2000;
 /** Cap for the no-radius-limit query (all live shops, nearest first). */
 const MAX_UNLIMITED_DOCS = 1000;
 
-function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc {
-  return {
-    id,
-    ownerId: data.ownerId,
-    status: data.status,
-    onboardingStep: data.onboardingStep,
-    isOpen: data.isOpen,
-    type: data.type,
-    name: data.name,
-    phone: data.phone,
-    hours: data.hours,
-    location: data.location,
-    itemCount: data.itemCount ?? 0,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-  };
-}
+const METERS_PER_DEGREE_LAT = 111_320;
 
 /**
- * Step 1.4: a geohash bound with more than MAX_DOCS_PER_BOUND shops in it
- * used to silently drop everything past the cap — a busy area could hide
- * real, live shops from search with no sign anything was cut. This pages
- * through the bound with `startAfter` until it's exhausted (a page comes
- * back smaller than the page size) or the safety cap is hit.
+ * Live shops whose location falls inside the lat/lng box around `center`
+ * that contains the whole search circle; the exact circle check happens in
+ * memory afterwards. (Replaces the Firestore geohash-bound queries, which
+ * needed paging per bound — Step 1.4 — because Firestore couldn't do this
+ * in one query.)
  */
-async function queryBoundExhaustive(
-  start: string,
-  end: string,
-): Promise<FirebaseFirestore.QueryDocumentSnapshot[]> {
-  const docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
-  let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+async function liveShopsInBox(center: GeoPoint, radiusInM: number): Promise<ShopDoc[]> {
+  const dLat = radiusInM / METERS_PER_DEGREE_LAT;
+  const cosLat = Math.max(Math.cos((center.lat * Math.PI) / 180), 0.01);
+  const dLng = radiusInM / (METERS_PER_DEGREE_LAT * cosLat);
+  const rows = await db()`
+    select * from shops
+    where status = 'live'
+      and location is not null
+      and (location->>'lat')::float8 between ${center.lat - dLat} and ${center.lat + dLat}
+      and (location->>'lng')::float8 between ${center.lng - dLng} and ${center.lng + dLng}
+    limit ${MAX_SHOPS}
+  `;
+  return rows.map(toShop);
+}
 
-  for (let page = 0; page < MAX_PAGES_PER_BOUND; page++) {
-    let q = adminDb()
-      .collection("shops")
-      .orderBy("location.geohash")
-      .startAt(start)
-      .endAt(end)
-      .limit(MAX_DOCS_PER_BOUND);
-    if (cursor) {
-      q = adminDb()
-        .collection("shops")
-        .orderBy("location.geohash")
-        .startAfter(cursor)
-        .endAt(end)
-        .limit(MAX_DOCS_PER_BOUND);
-    }
-    const snap = await q.get();
-    docs.push(...snap.docs);
-    if (snap.size < MAX_DOCS_PER_BOUND) break; // bound is exhausted
-    cursor = snap.docs[snap.docs.length - 1];
-  }
-  return docs;
+async function allLiveShops(): Promise<ShopDoc[]> {
+  const rows = await db()`select * from shops where status = 'live' limit ${MAX_UNLIMITED_DOCS}`;
+  return rows.map(toShop);
 }
 
 function hasValidLocation(shop: ShopDoc): boolean {
@@ -84,9 +54,8 @@ function hasValidLocation(shop: ShopDoc): boolean {
  * everywhere that needs nearby shops (buyer list, search). Do not
  * duplicate the geohash-bound-query + client-side-filter pattern elsewhere.
  *
- * Only `location.geohash` is filtered in Firestore; status/isOpen are applied
- * in memory. A bounding box returns tens of docs, so the extra reads are
- * cheap, and this needs no composite index — new filters won't require one.
+ * The database narrows to live shops inside the search box; open/closed,
+ * a valid location and the exact distance are checked in memory.
  */
 export async function getNearbyShops(
   origin: GeoPoint,
@@ -103,36 +72,14 @@ export async function getNearbyShops(
   }
 
   const center: [number, number] = [origin.lat, origin.lng];
-  // radiusInM === 0 (ANY_DISTANCE): no limit — read every live shop instead of
-  // geohash bounds, then rank purely by distance.
+  // radiusInM === 0 (ANY_DISTANCE): no limit — read every live shop, then
+  // rank purely by distance.
   const unlimited = radiusInM === 0;
 
-  const docBatches = unlimited
-    ? [
-        (
-          await adminDb()
-            .collection("shops")
-            .where("status", "==", "live")
-            .limit(MAX_UNLIMITED_DOCS)
-            .get()
-        ).docs,
-      ]
-    : await Promise.all(
-        geohashQueryBounds(center, radiusInM).map(([start, end]) =>
-          queryBoundExhaustive(start, end)
-        )
-      );
-
-  const seen = new Map<string, ShopDoc>();
-  for (const docs of docBatches) {
-    for (const doc of docs) {
-      if (seen.has(doc.id)) continue;
-      seen.set(doc.id, shopFromDoc(doc.id, doc.data()));
-    }
-  }
+  const shops = unlimited ? await allLiveShops() : await liveShopsInBox(origin, radiusInM);
 
   const results: NearbyShopResult[] = [];
-  for (const shop of seen.values()) {
+  for (const shop of shops) {
     if (shop.status !== "live" || shop.isOpen !== true) continue;
     if (!hasValidLocation(shop)) continue;
 
@@ -157,15 +104,10 @@ export async function getNearbyShops(
  * returns open shops.
  */
 export async function listAllShops(origin: GeoPoint | null): Promise<ShopListResult[]> {
-  const snap = await adminDb()
-    .collection("shops")
-    .where("status", "==", "live")
-    .limit(MAX_UNLIMITED_DOCS)
-    .get();
+  const shops = await allLiveShops();
 
   const hasOrigin = !!origin && Number.isFinite(origin.lat) && Number.isFinite(origin.lng);
-  const results: ShopListResult[] = snap.docs.map((doc) => {
-    const shop = shopFromDoc(doc.id, doc.data());
+  const results: ShopListResult[] = shops.map((shop) => {
     const distanceInM =
       hasOrigin && hasValidLocation(shop)
         ? distanceBetween([origin!.lat, origin!.lng], [shop.location!.lat, shop.location!.lng]) * 1000

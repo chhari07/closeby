@@ -6,9 +6,9 @@ import { getMe } from "@/actions/users";
 import { assertShopOwnership } from "@/lib/auth/guards";
 import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { aiClient } from "@/lib/ai/client";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { findOrder, toApproval } from "@/lib/db/rows";
 import { checkOrderStock } from "@/lib/ai/order-stock";
-import type { OrderDoc } from "@/types";
 import { estimateCostUsd } from "@/lib/ai/models";
 import { aiProvider, openAiModel, runOpenAi } from "@/lib/ai/openai";
 import { isHelperEnabled, getDailyLimitUsd } from "@/lib/ai/settings";
@@ -320,8 +320,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
     const approvalId = (output as { approvalId: string | null }).approvalId;
     let cart: unknown = null;
     if (approvalId) {
-      const doc = await adminDb().collection("approvals").doc(approvalId).get();
-      const data = doc.data();
+      const [row] = await db()`select * from approvals where id = ${approvalId}`;
+      const data = row ? toApproval(row) : null;
       if (data && data.userId === userId && data.type === "draftCart") cart = data.draft;
     }
     output = { ...(output as object), cart };
@@ -332,8 +332,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
   // the shop already lists so a restock isn't imported as a duplicate.
   if (helperDef.name === "stockDraft" && shopId) {
     const approvalId = (output as { approvalId: string }).approvalId;
-    const doc = await adminDb().collection("approvals").doc(approvalId).get();
-    const draft = doc.data();
+    const [row] = await db()`select * from approvals where id = ${approvalId}`;
+    const draft = row ? toApproval(row) : null;
     if (draft && draft.userId === userId && draft.type === "draftStockList") {
       const known = new Map<string, string>();
       for (const p of await getShopCatalog(shopId)) {
@@ -350,8 +350,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
   // Exact per-item stock numbers for the owner, computed here from real docs
   // rather than trusting the model's summary to report them correctly.
   if (helperDef.name === "orderAdvice" && orderId) {
-    const orderDoc = await adminDb().collection("orders").doc(orderId).get();
-    const order = orderDoc.data() as OrderDoc | undefined;
+    const order = await findOrder(orderId);
     const stock = order && order.shopId === shopId ? await checkOrderStock(order) : [];
     output = { ...(output as object), stock };
   }

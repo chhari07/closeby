@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 
-// Lazy singleton, same pattern as src/lib/firebase/admin.ts — importing this
+// Lazy singleton, same pattern as src/lib/db/client.ts — importing this
 // module (e.g. transitively during `next build`) must not require
 // ANTHROPIC_API_KEY to be set; only an actual AI request pays that cost.
 let _client: Anthropic | undefined;

@@ -1,7 +1,8 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { findUser, listLocalityRows } from "@/lib/db/rows";
 import { getNearbyShops, listAllShops } from "@/lib/geo/nearby-shops";
 import { ANY_DISTANCE } from "@/lib/geo/radius";
 import { toGeohash } from "@/lib/geo/geohash";
@@ -10,8 +11,7 @@ import type { ActionResult } from "./types";
 import { getShopCatalog } from "@/lib/catalog";
 
 export async function listLocalities(): Promise<Locality[]> {
-  const snap = await adminDb().collection("localities").get();
-  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Locality, "id">) }));
+  return listLocalityRows();
 }
 
 /** "Any distance" lists every live shop (location optional); a km radius
@@ -62,7 +62,7 @@ export async function searchNearbyShopsByProduct(
 
   const matches = await Promise.all(
     nearby.map(async (result) => {
-      // Cached catalog (src/lib/catalog.ts): a search costs no Firestore reads once warm.
+      // Cached catalog (src/lib/catalog.ts): a search costs no database reads once warm.
       const inStock = (await getShopCatalog(result.shop.id)).filter((p) => p.inStock).slice(0, MAX_PRODUCTS_PER_SHOP);
 
       const hit = inStock.find((p) => {
@@ -88,21 +88,19 @@ export async function saveMyLocation(
   const { userId } = await auth();
   if (!userId) return { ok: false, error: "Not signed in" };
 
-  await adminDb()
-    .collection("users")
-    .doc(userId)
-    .set(
-      {
-        lastKnownLocation: {
-          lat: point.lat,
-          lng: point.lng,
-          geohash: toGeohash(point),
-          localityId: localityId ?? null,
-          source,
-        },
-      },
-      { merge: true }
-    );
+  const lastKnownLocation = {
+    lat: point.lat,
+    lng: point.lng,
+    geohash: toGeohash(point),
+    localityId: localityId ?? null,
+    source,
+  };
+  const now = Date.now();
+  await db()`
+    insert into users (id, last_known_location, created_at, updated_at)
+    values (${userId}, ${db().json(lastKnownLocation)}, ${now}, ${now})
+    on conflict (id) do update set last_known_location = excluded.last_known_location
+  `;
   return { ok: true };
 }
 
@@ -114,8 +112,7 @@ export async function getMyLastLocation(): Promise<{
 } | null> {
   const { userId } = await auth();
   if (!userId) return null;
-  const doc = await adminDb().collection("users").doc(userId).get();
-  const loc = doc.data()?.lastKnownLocation;
+  const loc = (await findUser(userId))?.lastKnownLocation;
   if (!loc) return null;
   return { lat: loc.lat, lng: loc.lng, localityId: loc.localityId, source: loc.source };
 }

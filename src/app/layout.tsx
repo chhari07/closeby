@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Anton } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
-import { FirebaseAuthSync } from "@/components/firebase-auth-sync";
 import { BuyerOrderAlerts } from "@/components/buyer/order-alerts";
 import { OfflineBanner } from "@/components/offline-banner";
 import { Navbar } from "@/components/nav/navbar";
@@ -35,7 +34,6 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className={cn("font-sans", plusJakarta.variable, anton.variable)}>
         <body className={cn(plusJakarta.variable, "font-sans antialiased")}>
-          <FirebaseAuthSync />
           <BuyerOrderAlerts />
           <OfflineBanner />
           <div className="flex min-h-svh flex-col">

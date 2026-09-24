@@ -1,17 +1,17 @@
 import "server-only";
 import { redirect, notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { findShop } from "@/lib/db/rows";
 import { getMe } from "@/actions/users";
-import type { Role, UserDoc } from "@/types";
+import type { Role, ShopDoc, UserDoc } from "@/types";
 
 /**
- * Firestore is the only source of truth for role — Clerk's default session
+ * The users table is the only source of truth for role — Clerk's default session
  * token does NOT include publicMetadata (that requires a Dashboard-side
  * "customize session token" step), so sessionClaims.publicMetadata is
  * always undefined here. Never gate on it. Middleware only handles
  * "signed in or not"; every role-specific check happens here, backed by a
- * real Firestore read.
+ * real database read.
  */
 export async function requireOnboardedUser(): Promise<UserDoc & { id: string }> {
   const { userId } = await auth();
@@ -60,16 +60,13 @@ export function requireOwner(): Promise<string> {
 }
 
 /** Given a known userId, throws unless they own shopId. Returns the shop
- *  doc so callers that need shop data (e.g. goLiveShop) don't re-read it. */
-export async function assertShopOwnership(
-  userId: string,
-  shopId: string,
-): Promise<FirebaseFirestore.DocumentSnapshot> {
-  const doc = await adminDb().collection("shops").doc(shopId).get();
-  if (!doc.exists || doc.data()?.ownerId !== userId) {
+ *  so callers that need shop data (e.g. goLiveShop) don't re-read it. */
+export async function assertShopOwnership(userId: string, shopId: string): Promise<ShopDoc> {
+  const shop = await findShop(shopId);
+  if (!shop || shop.ownerId !== userId) {
     throw new Error("You do not own this shop");
   }
-  return doc;
+  return shop;
 }
 
 /** Signed in AND owns shopId, or throw. The one-call version of the above
@@ -77,7 +74,7 @@ export async function assertShopOwnership(
  *  interleaved in between. */
 export async function requireShopOwner(
   shopId: string,
-): Promise<{ userId: string; shop: FirebaseFirestore.DocumentSnapshot }> {
+): Promise<{ userId: string; shop: ShopDoc }> {
   const userId = await requireUserId();
   const shop = await assertShopOwnership(userId, shopId);
   return { userId, shop };
@@ -87,6 +84,6 @@ export async function requireShopOwner(
  *  which can't let an exception surface mid tool-call; they check this and
  *  return an empty/denied result instead. */
 export async function ownsShop(userId: string, shopId: string): Promise<boolean> {
-  const doc = await adminDb().collection("shops").doc(shopId).get();
-  return doc.exists && doc.data()?.ownerId === userId;
+  const shop = await findShop(shopId);
+  return shop?.ownerId === userId;
 }

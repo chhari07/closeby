@@ -1,7 +1,8 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { findShop, toOrder } from "@/lib/db/rows";
 import type { ActionResult } from "./types";
 import type { OrderDoc, OrderStatus } from "@/types";
 import { getShopCatalog } from "@/lib/catalog";
@@ -100,22 +101,16 @@ export interface ShopReport {
 export async function getShopReport(shopId: string): Promise<ActionResult<ShopReport>> {
   const { userId } = await auth();
   if (!userId) return { ok: false, error: "Not signed in" };
-  const shopRef = adminDb().collection("shops").doc(shopId);
-  const shopDoc = await shopRef.get();
-  if (!shopDoc.exists || shopDoc.data()?.ownerId !== userId) {
+  const shop = await findShop(shopId);
+  if (!shop || shop.ownerId !== userId) {
     return { ok: false, error: "You do not own this shop" };
   }
 
-  const [orderSnap, products] = await Promise.all([
-    adminDb()
-      .collection("orders")
-      .where("shopId", "==", shopId)
-      .orderBy("createdAt", "desc")
-      .limit(MAX_ORDERS)
-      .get(),
+  const [orderRows, products] = await Promise.all([
+    db()`select * from orders where shop_id = ${shopId} order by created_at desc limit ${MAX_ORDERS}`,
     getShopCatalog(shopId),
   ]);
-  const orders = orderSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<OrderDoc, "id">) }));
+  const orders = orderRows.map(toOrder);
 
   const now = Date.now();
   const today = istDayStart(now);

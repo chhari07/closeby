@@ -1,5 +1,5 @@
 import "server-only";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
 import type { AiHelperName, AiSettingsDoc } from "@/types/ai";
 
 const DEFAULT_DAILY_LIMIT_USD = 2;
@@ -9,31 +9,26 @@ export function globalKillSwitchOn(): boolean {
   return process.env.AI_DISABLED === "true";
 }
 
-/** Global doc id = helper name; per-shop override doc id = `${helper}__${shopId}`. */
+/** Global row id = helper name; per-shop override row id = `${helper}__${shopId}`. */
 function shopDocId(helper: AiHelperName, shopId: string): string {
   return `${helper}__${shopId}`;
 }
 
 /**
- * Checked at every AI route call (order-of-checks step 3). Missing docs
+ * Checked at every AI route call (order-of-checks step 3). Missing rows
  * default to enabled — an owner/admin has to explicitly turn a helper off.
  */
 export async function isHelperEnabled(helper: AiHelperName, shopId?: string): Promise<boolean> {
   if (globalKillSwitchOn()) return false;
 
-  const globalDoc = await adminDb().collection("aiSettings").doc(helper).get();
-  if (globalDoc.exists && globalDoc.data()?.enabled === false) return false;
-
-  if (shopId) {
-    const shopDoc = await adminDb().collection("aiSettings").doc(shopDocId(helper, shopId)).get();
-    if (shopDoc.exists && shopDoc.data()?.enabled === false) return false;
-  }
-  return true;
+  const ids = shopId ? [helper, shopDocId(helper, shopId)] : [helper];
+  const rows = await db()`select enabled from ai_settings where id = any(${ids})`;
+  return !rows.some((r) => r.enabled === false);
 }
 
 export async function getDailyLimitUsd(helper: AiHelperName): Promise<number> {
-  const doc = await adminDb().collection("aiSettings").doc(helper).get();
-  const limit = doc.data()?.dailyLimitUsd;
+  const [row] = await db()`select daily_limit_usd from ai_settings where id = ${helper}`;
+  const limit = row?.dailyLimitUsd;
   return typeof limit === "number" && limit > 0 ? limit : DEFAULT_DAILY_LIMIT_USD;
 }
 
@@ -45,7 +40,11 @@ export async function setHelperEnabled(
 ): Promise<void> {
   const id = shopId ? shopDocId(helper, shopId) : helper;
   const doc: AiSettingsDoc = { helper, shopId: shopId ?? null, enabled };
-  await adminDb().collection("aiSettings").doc(id).set(doc, { merge: true });
+  await db()`
+    insert into ai_settings (id, helper, shop_id, enabled)
+    values (${id}, ${doc.helper}, ${doc.shopId}, ${doc.enabled})
+    on conflict (id) do update set enabled = excluded.enabled
+  `;
 }
 
 /** For a settings UI: whether each helper is currently on for this shop. */

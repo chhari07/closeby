@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { doc, onSnapshot } from "firebase/firestore";
 import { OrderBill } from "@/components/orders/order-bill";
-import { useFirebaseReady } from "@/lib/hooks/use-firebase-ready";
+import { useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { toast } from "sonner";
 import { Check, X, Loader2, Phone } from "lucide-react";
-import { getDb } from "@/lib/firebase/client";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -19,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { transitionOrder } from "@/actions/orders";
+import { getOrder, transitionOrder } from "@/actions/orders";
 import { isTerminal } from "@/lib/orders/transitions";
 import { OrderHelpChat } from "./order-help-chat";
 import type { OrderDoc, OrderStatus } from "@/types";
@@ -53,22 +51,12 @@ export function OrderTimeline({
   const [cancelling, setCancelling] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const firebaseReady = useFirebaseReady();
-
-  useEffect(() => {
-    if (!firebaseReady) return;
-    const unsub = onSnapshot(
-      doc(getDb(), "orders", orderId),
-      (snap) => {
-        if (snap.exists()) {
-          setOrder({ id: snap.id, ...(snap.data() as Omit<OrderDoc, "id">) });
-        }
-      },
-      // Server-rendered order stays on screen if live updates can't start.
-      (err) => console.error("Order listener failed", err),
-    );
-    return unsub;
-  }, [orderId, firebaseReady]);
+  // Live status: re-read the order whenever it changes. The server-rendered
+  // order stays on screen if live updates can't start.
+  useOrderSignals(`order:${orderId}`, async () => {
+    const fresh = await getOrder(orderId).catch(() => null);
+    if (fresh) setOrder(fresh);
+  });
 
   const isBuyer = user?.id === order.buyerId;
   const terminal = isTerminal(order.status);

@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import { collection, limit, onSnapshot, orderBy, query, where } from "firebase/firestore";
 import { listShopOrders } from "@/actions/orders";
-import { getDb } from "@/lib/firebase/client";
-import { useFirebaseReady } from "@/lib/hooks/use-firebase-ready";
+import { useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { useShop } from "@/components/dashboard/shop-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -15,58 +13,35 @@ import type { OrderDoc } from "@/types";
 
 const ACTIVE_STATUSES = new Set(["ACCEPTED", "PREPARING", "READY"]);
 
+/** Step 1.2: bounded even as a live list — the 200 most recent orders is far
+ *  more than any working queue needs. */
+const LIVE_ORDER_LIMIT = 200;
+
 export default function DashboardOrdersPage() {
   const { shop } = useShop();
-  const firebaseReady = useFirebaseReady();
   const [orders, setOrders] = useState<OrderDoc[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Live Firestore listener instead of polling: new orders (and status
-  // changes made from another device) show up the instant they're written,
-  // and it keeps working while the tab is in the background — a fixed poll
-  // interval can't do either. The new-order sound/toast/notification live in
-  // <OrderAlerts>, mounted once for the whole dashboard, not here.
-  useEffect(() => {
-    if (!firebaseReady) return;
-    // Step 1.2: bounded even as a live listener — the 200 most recent orders
-    // is far more than any working queue needs; older history is on the
-    // buyer's own order page and doesn't need to live-update here.
-    const q = query(
-      collection(getDb(), "orders"),
-      where("shopId", "==", shop.id),
-      orderBy("createdAt", "desc"),
-      limit(200),
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setLoadError(null);
-        setOrders(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<OrderDoc, "id">) })));
-      },
-      (err) => {
-        console.error("Orders listener failed", err);
-        setLoadError((prev) => prev ?? "Could not load orders");
-      },
-    );
-    return unsub;
-  }, [shop.id, firebaseReady]);
+  const load = useCallback(async () => {
+    const result = await listShopOrders(shop.id, undefined, LIVE_ORDER_LIMIT);
+    if (result.ok && result.data) {
+      setLoadError(null);
+      setOrders(result.data.orders);
+    } else {
+      setLoadError((prev) => prev ?? result.error ?? "Could not load orders");
+    }
+  }, [shop.id]);
 
-  // One-off fallback fetch: covers the (rare) case where Firebase client
-  // auth never comes up, so the page isn't stuck on a skeleton forever.
   useEffect(() => {
-    if (firebaseReady) return;
-    const timer = setTimeout(async () => {
-      if (orders !== null) return;
-      const result = await listShopOrders(shop.id);
-      if (result.ok && result.data) {
-        setLoadError(null);
-        setOrders(result.data.orders);
-      } else {
-        setLoadError(result.error ?? "Could not load orders");
-      }
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, [firebaseReady, orders, shop.id]);
+    void load();
+  }, [load]);
+
+  // Live instead of polling: every order insert/update sends a signal (see
+  // src/lib/hooks/use-order-signals.ts), so new orders and status changes
+  // made from another device show up the instant they're written. The
+  // new-order sound/toast/notification live in <OrderAlerts>, mounted once
+  // for the whole dashboard, not here.
+  useOrderSignals(`shop-orders:${shop.id}`, () => void load());
 
   if (!orders && loadError) {
     return (

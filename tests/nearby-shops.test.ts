@@ -1,19 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { geohashForLocation } from "geofire-common";
 
-// nearby-shops.ts (and the admin module it imports) start with
+// nearby-shops.ts (and the db modules it imports) start with
 // `import "server-only"`, which throws unconditionally outside of Next's
 // server bundling — stub it out so this file can be unit-tested in plain
 // Node under vitest.
 vi.mock("server-only", () => ({}));
-
-// Real distance math, but a single geohash bound covering the whole
-// keyspace — this test is about *our* filtering/paging logic (Step 1.4),
-// not about re-deriving geofire-common's own bound math.
-vi.mock("geofire-common", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("geofire-common")>();
-  return { ...actual, geohashQueryBounds: () => [["0", "zzzzzzzzzzzz"]] };
-});
 
 interface FakeShop {
   id: string;
@@ -22,71 +14,11 @@ interface FakeShop {
 
 let dataset: FakeShop[] = [];
 
-// Real Firestore excludes documents missing the orderBy field entirely
-// (rather than sorting them as "least"), so a doc with no location — or no
-// geohash on it — never comes back from an orderBy("location.geohash")
-// query. null here, not a thrown error, lets callers filter it out.
-function geohashOf(data: Record<string, unknown>): string | null {
-  const loc = data.location as { geohash?: string } | undefined;
-  return loc?.geohash ?? null;
-}
-
-function makeQuery(state: {
-  whereField?: string;
-  whereValue?: unknown;
-  ordered?: boolean;
-  startAt?: string;
-  endAt?: string;
-  afterGeohash?: string;
-  limitN?: number;
-}) {
-  return {
-    where(field: string, _op: string, value: unknown) {
-      void _op;
-      return makeQuery({ ...state, whereField: field, whereValue: value });
-    },
-    orderBy(_field: string) {
-      void _field;
-      return makeQuery({ ...state, ordered: true });
-    },
-    startAt(v: string) {
-      return makeQuery({ ...state, startAt: v });
-    },
-    endAt(v: string) {
-      return makeQuery({ ...state, endAt: v });
-    },
-    startAfter(cursor: { data: () => Record<string, unknown> }) {
-      return makeQuery({ ...state, afterGeohash: geohashOf(cursor.data()) ?? undefined });
-    },
-    limit(n: number) {
-      return makeQuery({ ...state, limitN: n });
-    },
-    async get() {
-      let rows = dataset;
-      if (state.whereField) {
-        rows = rows.filter((r) => r.data[state.whereField!] === state.whereValue);
-      }
-      if (state.ordered) {
-        rows = rows.filter((r) => geohashOf(r.data) !== null);
-        rows = [...rows].sort((a, b) => (geohashOf(a.data)! < geohashOf(b.data)! ? -1 : 1));
-        if (state.startAt !== undefined) rows = rows.filter((r) => geohashOf(r.data)! >= state.startAt!);
-        if (state.endAt !== undefined) rows = rows.filter((r) => geohashOf(r.data)! <= state.endAt!);
-        if (state.afterGeohash !== undefined) rows = rows.filter((r) => geohashOf(r.data)! > state.afterGeohash!);
-      }
-      if (state.limitN !== undefined) rows = rows.slice(0, state.limitN);
-      const docs = rows.map((r) => ({ id: r.id, data: () => r.data }));
-      return { docs, size: docs.length };
-    },
-  };
-}
-
-vi.mock("@/lib/firebase/admin", () => ({
-  adminDb: () => ({
-    collection: (name: string) => {
-      if (name !== "shops") throw new Error(`unexpected collection ${name}`);
-      return makeQuery({});
-    },
-  }),
+// The SQL only pre-narrows (live shops inside a lat/lng box); this test is
+// about *our* in-memory filtering and ranking, so the fake database simply
+// returns every row and the code under test must still get it right.
+vi.mock("@/lib/db/client", () => ({
+  db: () => async () => dataset.map((r) => ({ id: r.id, ...r.data })),
 }));
 
 const ORIGIN = { lat: 24.645, lng: 77.317 }; // Guna, MP
@@ -158,10 +90,10 @@ describe("getNearbyShops", () => {
     expect(results).toEqual([]);
   });
 
-  it("Step 1.4: pages through a bound with more than the per-page cap instead of truncating", async () => {
+  it("Step 1.4: returns every shop in range, not a truncated page", async () => {
     const { getNearbyShops } = await import("../src/lib/geo/nearby-shops");
-    // MAX_DOCS_PER_BOUND is 300 — put more than that in a single (mocked,
-    // whole-keyspace) bound, all genuinely within the search radius.
+    // More than the old Firestore per-bound page size (300), all genuinely
+    // within the search radius.
     const COUNT = 340;
     dataset = Array.from({ length: COUNT }, (_, i) =>
       fakeShop(`shop-${i}`, 0.0001 * (i % 50), 0.0001 * Math.floor(i / 50)),
@@ -172,7 +104,7 @@ describe("getNearbyShops", () => {
     expect(results).toHaveLength(COUNT);
   });
 
-  it("radius 0 (ANY_DISTANCE) returns every live+open shop ranked by distance, uncapped by bound size", async () => {
+  it("radius 0 (ANY_DISTANCE) returns every live+open shop ranked by distance", async () => {
     const { getNearbyShops } = await import("../src/lib/geo/nearby-shops");
     dataset = [
       fakeShop("a", 0.01, 0),

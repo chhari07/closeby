@@ -1,38 +1,16 @@
 /**
- * Seeds the `localities` collection for Guna, MP.
+ * Seeds the `localities` table for Guna, MP. Safe to re-run (upserts).
  *
  * Usage: npm run seed:localities
- * Requires FIREBASE_ADMIN_* env vars in .env.local (loaded manually below
- * since this runs outside the Next.js runtime).
+ * Requires DATABASE_URL in .env.local.
  *
  * Coordinates are approximate (centered on well-known Guna landmarks/areas)
  * — good enough to seed a hyperlocal MVP's fallback locality picker and
  * "nearest locality" lookup. Replace with geocoded values before relying on
  * them for anything precision-sensitive.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { cert, initializeApp } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
 import { geohashForLocation } from "geofire-common";
-
-function loadEnvLocal() {
-  const path = resolve(process.cwd(), ".env.local");
-  let content: string;
-  try {
-    content = readFileSync(path, "utf8");
-  } catch {
-    return;
-  }
-  for (const line of content.split("\n")) {
-    const match = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (!match) continue;
-    const [, key, rawValue] = match;
-    if (!key || process.env[key]) continue;
-    process.env[key] = rawValue.replace(/^"|"$/g, "");
-  }
-}
-loadEnvLocal();
+import { connect } from "./lib/db";
 
 const CITY = "Guna";
 
@@ -51,33 +29,17 @@ const LOCALITIES: [string, number, number][] = [
 ];
 
 async function main() {
-  const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY?.replace(/\\n/g, "\n");
-
-  if (!projectId || !clientEmail || !privateKey) {
-    console.error(
-      "Missing FIREBASE_ADMIN_PROJECT_ID / FIREBASE_ADMIN_CLIENT_EMAIL / FIREBASE_ADMIN_PRIVATE_KEY in .env.local"
-    );
-    process.exit(1);
-  }
-
-  const app = initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
-  const db = getFirestore(app);
-
-  const batch = db.batch();
+  const sql = connect();
   for (const [name, lat, lng] of LOCALITIES) {
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    const ref = db.collection("localities").doc(id);
-    batch.set(ref, {
-      name,
-      city: CITY,
-      center: { lat, lng },
-      geohash: geohashForLocation([lat, lng]),
-    });
+    const row = { id, name, city: CITY, center: sql.json({ lat, lng }), geohash: geohashForLocation([lat, lng]) };
+    await sql`
+      insert into localities ${sql(row)}
+      on conflict (id) do update set name = excluded.name, city = excluded.city, center = excluded.center, geohash = excluded.geohash
+    `;
   }
-  await batch.commit();
   console.log(`Seeded ${LOCALITIES.length} localities for ${CITY}.`);
+  await sql.end();
 }
 
 main().catch((err) => {

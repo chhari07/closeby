@@ -1,17 +1,16 @@
 import "server-only";
 import { z } from "zod";
 import { betaZodTool } from "@anthropic-ai/sdk/helpers/beta/zod";
-import { adminDb } from "@/lib/firebase/admin";
+import { findOrder } from "@/lib/db/rows";
 import { ownsShop } from "@/lib/auth/guards";
 import { getNearbyShops } from "@/lib/geo/nearby-shops";
 import { checkOrderStock } from "@/lib/ai/order-stock";
-import type { OrderDoc } from "@/types";
 import type { ToolContext } from "./context";
 import { getShopCatalog } from "@/lib/catalog";
 
 /**
  * Read-only tools (roadmap §2.3). Every one of these returns only fields
- * copied straight out of a real Firestore doc — the model never gets to
+ * copied straight out of a real database row — the model never gets to
  * assert a price, a stock count, or an order status; it can only read one
  * a tool actually fetched. This is what "stops made-up items."
  */
@@ -165,9 +164,8 @@ export function orderStatusTool(ctx: ToolContext) {
       "stock and `shortBy` (how many are missing; 0 = fully in stock).",
     inputSchema: z.object({ orderId: z.string().trim().min(1).max(80) }),
     run: async ({ orderId }) => {
-      const doc = await adminDb().collection("orders").doc(orderId).get();
-      if (!doc.exists) return JSON.stringify({ found: false });
-      const order = doc.data() as OrderDoc;
+      const order = await findOrder(orderId);
+      if (!order) return JSON.stringify({ found: false });
 
       const isBuyer = order.buyerId === ctx.userId;
       const isShop = ctx.role === "shop_owner" && (await ownsShop(ctx.userId, order.shopId));

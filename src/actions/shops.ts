@@ -1,6 +1,7 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { listLocalityRows, toShop } from "@/lib/db/rows";
 import { requireUserId, requireShopOwner } from "@/lib/auth/guards";
 import { toGeohash, nearestLocality } from "@/lib/geo/geohash";
 import {
@@ -10,61 +11,32 @@ import {
   shopHoursSchema,
   shopLocationStepSchema,
 } from "@/lib/validation/shop";
-import type { ShopDoc, Locality } from "@/types";
+import type { ShopDoc } from "@/types";
 import type { z } from "zod";
 import type { ActionResult } from "./types";
 import { cache } from "react";
 
-function shopFromDoc(id: string, data: FirebaseFirestore.DocumentData): ShopDoc {
-  return {
-    id,
-    ownerId: data.ownerId,
-    status: data.status,
-    onboardingStep: data.onboardingStep,
-    isOpen: data.isOpen,
-    type: data.type,
-    name: data.name,
-    phone: data.phone,
-    hours: data.hours,
-    location: data.location,
-    itemCount: data.itemCount ?? 0,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-  };
-}
-
-/** Dashboard layout + page both ask for the shop: one Firestore read per request (see getMe). */
+/** Dashboard layout + page both ask for the shop: one database read per request (see getMe). */
 export async function getMyShop(): Promise<ShopDoc | null> {
   return getMyShopOncePerRequest();
 }
 
 const getMyShopOncePerRequest = cache(async (): Promise<ShopDoc | null> => {
   const userId = await requireUserId();
-  const snap = await adminDb().collection("shops").where("ownerId", "==", userId).limit(1).get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0]!;
-  return shopFromDoc(doc.id, doc.data());
+  const [row] = await db()`select * from shops where owner_id = ${userId} limit 1`;
+  return row ? toShop(row) : null;
 });
 
 async function ensureDraftShop(userId: string): Promise<string> {
-  const existing = await adminDb().collection("shops").where("ownerId", "==", userId).limit(1).get();
-  if (!existing.empty) return existing.docs[0]!.id;
-
+  // owner_id is unique, so two concurrent calls can't both create a draft.
   const now = Date.now();
-  const ref = adminDb().collection("shops").doc();
-  await ref.set({
-    ownerId: userId,
-    status: "draft",
-    onboardingStep: 1,
-    isOpen: false,
-    type: null,
-    name: "",
-    phone: "",
-    itemCount: 0,
-    createdAt: now,
-    updatedAt: now,
-  });
-  return ref.id;
+  await db()`
+    insert into shops (owner_id, created_at, updated_at)
+    values (${userId}, ${now}, ${now})
+    on conflict (owner_id) do nothing
+  `;
+  const [row] = await db()`select id from shops where owner_id = ${userId}`;
+  return row!.id as string;
 }
 
 /**
@@ -78,10 +50,10 @@ export async function createShopDraft(input: { name: string; phone: string }): P
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
   const shopId = await ensureDraftShop(userId);
-  await adminDb()
-    .collection("shops")
-    .doc(shopId)
-    .update({ name: parsed.data.name, phone: parsed.data.phone, updatedAt: Date.now() });
+  await db()`
+    update shops set name = ${parsed.data.name}, phone = ${parsed.data.phone}, updated_at = ${Date.now()}
+    where id = ${shopId}
+  `;
   return { ok: true };
 }
 
@@ -91,13 +63,10 @@ export async function saveShopType(input: z.infer<typeof shopTypeStepSchema>): P
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
   const shopId = await ensureDraftShop(userId);
-  const ref = adminDb().collection("shops").doc(shopId);
-  const current = (await ref.get()).data();
-  await ref.update({
-    type: parsed.data.type,
-    onboardingStep: Math.max(current?.onboardingStep ?? 1, 2),
-    updatedAt: Date.now(),
-  });
+  await db()`
+    update shops set type = ${parsed.data.type}, onboarding_step = greatest(onboarding_step, 2), updated_at = ${Date.now()}
+    where id = ${shopId}
+  `;
   return { ok: true, data: { shopId } };
 }
 
@@ -109,15 +78,16 @@ export async function saveShopDetails(
   const parsed = shopDetailsStepSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
-  const ref = adminDb().collection("shops").doc(shopId);
-  const current = (await ref.get()).data();
-  await ref.update({
-    name: parsed.data.name,
-    phone: parsed.data.phone,
-    hours: { open: parsed.data.open, close: parsed.data.close, days: parsed.data.days },
-    onboardingStep: Math.max(current?.onboardingStep ?? 1, 3),
-    updatedAt: Date.now(),
-  });
+  const hours = { open: parsed.data.open, close: parsed.data.close, days: parsed.data.days };
+  await db()`
+    update shops set
+      name = ${parsed.data.name},
+      phone = ${parsed.data.phone},
+      hours = ${db().json(hours)},
+      onboarding_step = greatest(onboarding_step, 3),
+      updated_at = ${Date.now()}
+    where id = ${shopId}
+  `;
   return { ok: true };
 }
 
@@ -155,55 +125,49 @@ export async function saveShopLocation(
     };
   }
 
-  const localitiesSnap = await adminDb().collection("localities").get();
-  const localities: Locality[] = localitiesSnap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Locality, "id">),
-  }));
-  const nearest = nearestLocality({ lat, lng }, localities);
-
-  const ref = adminDb().collection("shops").doc(shopId);
-  const current = (await ref.get()).data();
-  await ref.update({
-    location: {
-      lat,
-      lng,
-      geohash: toGeohash({ lat, lng }),
-      address,
-      localityId: nearest?.id ?? "",
-    },
-    onboardingStep: Math.max(current?.onboardingStep ?? 1, 4),
-    updatedAt: Date.now(),
-  });
+  const nearest = nearestLocality({ lat, lng }, await listLocalityRows());
+  const location = {
+    lat,
+    lng,
+    geohash: toGeohash({ lat, lng }),
+    address,
+    localityId: nearest?.id ?? "",
+  };
+  await db()`
+    update shops set
+      location = ${db().json(location)},
+      onboarding_step = greatest(onboarding_step, 4),
+      updated_at = ${Date.now()}
+    where id = ${shopId}
+  `;
   return { ok: true };
 }
 
 export async function goLiveShop(shopId: string): Promise<ActionResult> {
-  const { shop: doc } = await requireShopOwner(shopId);
-  const data = doc.data()!;
+  const { shop } = await requireShopOwner(shopId);
 
-  if (!data.type || !data.name || !data.phone || !data.hours || !data.location) {
+  if (!shop.type || !shop.name || !shop.phone || !shop.hours || !shop.location) {
     return { ok: false, error: "Complete all onboarding steps first" };
   }
 
-  const productsSnap = await adminDb().collection("shops").doc(shopId).collection("products").get();
-  if (productsSnap.size < 3) {
+  const [{ count }] = (await db()`select count(*)::int as count from products where shop_id = ${shopId}`) as unknown as [
+    { count: number },
+  ];
+  if (count < 3) {
     return { ok: false, error: "Add at least 3 products before going live" };
   }
 
-  await adminDb().collection("shops").doc(shopId).update({
-    status: "live",
-    isOpen: true,
-    onboardingStep: 4,
-    updatedAt: Date.now(),
-  });
+  await db()`
+    update shops set status = 'live', is_open = true, onboarding_step = 4, updated_at = ${Date.now()}
+    where id = ${shopId}
+  `;
 
   return { ok: true };
 }
 
 export async function toggleShopOpen(shopId: string, isOpen: boolean): Promise<ActionResult> {
   await requireShopOwner(shopId);
-  await adminDb().collection("shops").doc(shopId).update({ isOpen, updatedAt: Date.now() });
+  await db()`update shops set is_open = ${isOpen}, updated_at = ${Date.now()} where id = ${shopId}`;
   return { ok: true };
 }
 
@@ -214,7 +178,7 @@ export async function updateShopHours(
   await requireShopOwner(shopId);
   const parsed = shopHoursSchema.safeParse(hours);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
-  await adminDb().collection("shops").doc(shopId).update({ hours: parsed.data, updatedAt: Date.now() });
+  await db()`update shops set hours = ${db().json(parsed.data)}, updated_at = ${Date.now()} where id = ${shopId}`;
   return { ok: true };
 }
 
@@ -226,9 +190,9 @@ export async function updateShopProfile(
   await requireShopOwner(shopId);
   const parsed = shopSeedSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
-  await adminDb()
-    .collection("shops")
-    .doc(shopId)
-    .update({ name: parsed.data.name, phone: parsed.data.phone, updatedAt: Date.now() });
+  await db()`
+    update shops set name = ${parsed.data.name}, phone = ${parsed.data.phone}, updated_at = ${Date.now()}
+    where id = ${shopId}
+  `;
   return { ok: true };
 }

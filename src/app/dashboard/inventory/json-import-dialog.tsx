@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { bulkImportProducts, bulkSetProductImages } from "@/actions/products";
-import { uploadProductImage } from "@/lib/firebase/upload";
+import { uploadProductImage } from "@/lib/supabase/upload";
 import { csvToProducts } from "@/lib/inventory/csv";
 import type { ProductDoc } from "@/types";
 

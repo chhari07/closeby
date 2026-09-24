@@ -1,7 +1,8 @@
 "use server";
 
-import { FieldValue } from "firebase-admin/firestore";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { toProduct } from "@/lib/db/rows";
+import { productImageUploadTarget } from "@/lib/supabase/admin";
 import { requireUserId as requireAuthedUserId, assertShopOwnership } from "@/lib/auth/guards";
 import {
   productSchema,
@@ -14,6 +15,7 @@ import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { getShopCatalog, invalidateCatalog } from "@/lib/catalog";
 import type { ActionResult } from "./types";
 import type { ProductDoc } from "@/types";
+import { randomUUID } from "node:crypto";
 
 /** Auth + rate limit, same as before — the ownership check (Step 1.9) now
  *  lives in src/lib/auth/guards.ts, shared with src/actions/shops.ts. */
@@ -44,15 +46,13 @@ export async function getLowStockProducts(
   shopId: string,
   max = 20,
 ): Promise<ProductDoc[]> {
-  const snap = await adminDb()
-    .collection("shops")
-    .doc(shopId)
-    .collection("products")
-    .where("stock", "<=", LOW_STOCK_THRESHOLD)
-    .orderBy("stock", "asc")
-    .limit(max)
-    .get();
-  return snap.docs.map((d) => ({ id: d.id, shopId, ...(d.data() as Omit<ProductDoc, "id" | "shopId">) }));
+  const rows = await db()`
+    select * from products
+    where shop_id = ${shopId} and stock <= ${LOW_STOCK_THRESHOLD}
+    order by stock asc
+    limit ${max}
+  `;
+  return rows.map(toProduct);
 }
 
 // inStock is derived from stock (see ProductDoc), so a bulk "mark out of
@@ -67,25 +67,18 @@ export async function bulkSetInStock(
   const userId = await requireUserId();
   await assertShopOwnership(userId, shopId);
 
-  const col = adminDb().collection("shops").doc(shopId).collection("products");
-  const batch = adminDb().batch();
-
+  const now = Date.now();
   if (!inStock) {
-    for (const id of productIds) {
-      batch.update(col.doc(id), { stock: 0, inStock: false, updatedAt: Date.now() });
-    }
+    await db()`
+      update products set stock = 0, in_stock = false, updated_at = ${now}
+      where shop_id = ${shopId} and id = any(${productIds})
+    `;
   } else {
-    const refs = productIds.map((id) => col.doc(id));
-    const docs = await adminDb().getAll(...refs);
-    for (const doc of docs) {
-      const stock = (doc.data()?.stock as number | undefined) ?? 0;
-      if (stock <= 0) {
-        batch.update(doc.ref, { stock: 1, inStock: true, lastRestockedAt: Date.now(), updatedAt: Date.now() });
-      }
-    }
+    await db()`
+      update products set stock = 1, in_stock = true, last_restocked_at = ${now}, updated_at = ${now}
+      where shop_id = ${shopId} and id = any(${productIds}) and stock <= 0
+    `;
   }
-
-  await batch.commit();
   invalidateCatalog(shopId);
   return { ok: true };
 }
@@ -99,32 +92,35 @@ export async function addProduct(
   const parsed = productSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
-  const shopRef = adminDb().collection("shops").doc(shopId);
-  const ref = shopRef.collection("products").doc();
   const { name, price, unit, category, stock, imageUrl, brand, description, mrp, aliases } = parsed.data;
+  const now = Date.now();
 
-  await adminDb().runTransaction(async (tx) => {
-    tx.set(ref, {
-      name,
-      price,
-      unit,
-      category,
-      stock,
-      inStock: stock > 0,
-      imageUrl: imageUrl ?? null,
-      // Firestore rejects undefined, so optional fields are only written when set.
-      ...(brand ? { brand } : {}),
-      ...(description ? { description } : {}),
-      ...(mrp ? { mrp } : {}),
-      ...(aliases?.length ? { aliases } : {}),
-      ...(stock > 0 ? { lastRestockedAt: Date.now() } : {}),
-      updatedAt: Date.now(),
-    });
-    tx.update(shopRef, { itemCount: FieldValue.increment(1), updatedAt: Date.now() });
+  const productId = await db().begin(async (tx) => {
+    const [row] = await tx`
+      insert into products ${tx({
+        shopId,
+        name,
+        price,
+        unit,
+        category,
+        stock,
+        inStock: stock > 0,
+        imageUrl: imageUrl ?? null,
+        brand: brand || null,
+        description: description || null,
+        mrp: mrp || null,
+        aliases: aliases?.length ? aliases : null,
+        lastRestockedAt: stock > 0 ? now : null,
+        updatedAt: now,
+      })}
+      returning id
+    `;
+    await tx`update shops set item_count = item_count + 1, updated_at = ${now} where id = ${shopId}`;
+    return row!.id as string;
   });
 
   invalidateCatalog(shopId);
-  return { ok: true, data: { productId: ref.id } };
+  return { ok: true, data: { productId } };
 }
 
 export interface BulkImportResult {
@@ -157,13 +153,11 @@ export async function bulkImportProducts(
     return { ok: false, error: "Import is limited to 200 products at a time" };
   }
 
-  const shopRef = adminDb().collection("shops").doc(shopId);
-  const col = shopRef.collection("products");
   const now = Date.now();
 
   // Validate each row independently so one bad row doesn't sink the whole
   // file — valid rows still get imported, invalid ones are reported back.
-  type Row = { ref: FirebaseFirestore.DocumentReference; data: Omit<ProductDoc, "id" | "shopId"> };
+  type Row = { id: string; data: Omit<ProductDoc, "id" | "shopId"> };
   const failed: { index: number; error: string }[] = [];
   const rows: Row[] = [];
 
@@ -174,7 +168,7 @@ export async function bulkImportProducts(
       return;
     }
     rows.push({
-      ref: col.doc(),
+      id: randomUUID(),
       data: {
         name: parsed.data.name,
         price: rupeesToPaise(parsed.data.price),
@@ -197,19 +191,31 @@ export async function bulkImportProducts(
     return { ok: false, error: "No valid products found in file", data: { products: [], failed } };
   }
 
-  // Firestore batches cap at 500 ops; chunk defensively (product writes +
-  // one itemCount update per chunk).
-  const CHUNK_SIZE = 400;
-  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-    const chunk = rows.slice(i, i + CHUNK_SIZE);
-    const batch = adminDb().batch();
-    for (const row of chunk) batch.set(row.ref, row.data);
-    batch.update(shopRef, { itemCount: FieldValue.increment(chunk.length), updatedAt: now });
-    await batch.commit();
-  }
+  // One transaction: every valid row lands together with the itemCount bump.
+  await db().begin(async (tx) => {
+    const values = rows.map(({ id, data }) => ({
+      id,
+      shopId,
+      name: data.name,
+      price: data.price,
+      unit: data.unit,
+      category: data.category,
+      stock: data.stock,
+      inStock: data.inStock,
+      imageUrl: data.imageUrl,
+      brand: data.brand ?? null,
+      description: data.description ?? null,
+      mrp: data.mrp ?? null,
+      aliases: data.aliases ?? null,
+      lastRestockedAt: data.lastRestockedAt ?? null,
+      updatedAt: data.updatedAt,
+    }));
+    await tx`insert into products ${tx(values)}`;
+    await tx`update shops set item_count = item_count + ${rows.length}, updated_at = ${now} where id = ${shopId}`;
+  });
 
   const products: ProductDoc[] = rows.map((row) => ({
-    id: row.ref.id,
+    id: row.id,
     shopId,
     ...row.data,
   }));
@@ -230,22 +236,22 @@ export async function updateProduct(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message };
 
   // zod keeps `key: undefined` entries for optional fields the caller passed
-  // as undefined (e.g. clearing an optional field in the form) — Firestore's
-  // Admin SDK throws on an explicit `undefined` value, so drop those keys
-  // rather than send them.
+  // as undefined (e.g. clearing an optional field in the form) — those mean
+  // "not changed", so drop them rather than write NULL.
   const update: Record<string, unknown> = { updatedAt: Date.now() };
   for (const [key, value] of Object.entries(parsed.data)) {
     if (value !== undefined) update[key] = value;
   }
-  const ref = adminDb().collection("shops").doc(shopId).collection("products").doc(productId);
   if (parsed.data.stock !== undefined) {
     update.inStock = parsed.data.stock > 0;
     // Stock going up = a restock; the Reports page shows when that last happened.
-    const current = (await ref.get()).data()?.stock;
-    if (typeof current !== "number" || parsed.data.stock > current) update.lastRestockedAt = update.updatedAt;
+    const [current] = await db()`select stock from products where id = ${productId} and shop_id = ${shopId}`;
+    if (typeof current?.stock !== "number" || parsed.data.stock > current.stock) {
+      update.lastRestockedAt = update.updatedAt;
+    }
   }
 
-  await ref.update(update);
+  await db()`update products set ${db()(update)} where id = ${productId} and shop_id = ${shopId}`;
   invalidateCatalog(shopId);
   return { ok: true };
 }
@@ -262,14 +268,13 @@ export async function deleteProduct(shopId: string, productId: string): Promise<
   const userId = await requireUserId();
   await assertShopOwnership(userId, shopId);
 
-  const shopRef = adminDb().collection("shops").doc(shopId);
-  const productRef = shopRef.collection("products").doc(productId);
-
   // Order line items are frozen snapshots at order time (see types/index.ts
-  // OrderItem), so deleting the catalog doc never touches past orders.
-  await adminDb().runTransaction(async (tx) => {
-    tx.delete(productRef);
-    tx.update(shopRef, { itemCount: FieldValue.increment(-1), updatedAt: Date.now() });
+  // OrderItem), so deleting the catalog row never touches past orders.
+  await db().begin(async (tx) => {
+    const deleted = await tx`delete from products where id = ${productId} and shop_id = ${shopId} returning id`;
+    if (deleted.length > 0) {
+      await tx`update shops set item_count = greatest(item_count - 1, 0), updated_at = ${Date.now()} where id = ${shopId}`;
+    }
   });
 
   invalidateCatalog(shopId);
@@ -284,17 +289,37 @@ export async function bulkSetProductImages(
   const userId = await requireUserId();
   await assertShopOwnership(userId, shopId);
 
-  const col = adminDb().collection("shops").doc(shopId).collection("products");
   const now = Date.now();
-  for (let i = 0; i < items.length; i += 400) {
-    const batch = adminDb().batch();
-    for (const { productId, imageUrl } of items.slice(i, i + 400)) {
+  await db().begin(async (tx) => {
+    for (const { productId, imageUrl } of items) {
       const url = productImageSchema.safeParse(imageUrl);
       if (!url.success) continue;
-      batch.update(col.doc(productId), { imageUrl: url.data, updatedAt: now });
+      await tx`update products set image_url = ${url.data}, updated_at = ${now} where id = ${productId} and shop_id = ${shopId}`;
     }
-    await batch.commit();
-  }
+  });
   invalidateCatalog(shopId);
   return { ok: true };
+}
+
+/**
+ * Step one of a product photo upload (the browser does step two, see
+ * src/lib/supabase/upload.ts): checks the caller owns the shop, then hands
+ * back a one-time signed URL for exactly one file path in the shop's photo
+ * folder. The bucket itself enforces the 5 MB / image-only limits.
+ */
+export async function createProductImageUpload(
+  shopId: string,
+  productId: string,
+  fileName: string,
+  contentType: string,
+): Promise<ActionResult<{ path: string; token: string; publicUrl: string }>> {
+  // Not the productWrite rate limit: a photo import asks for one of these per
+  // product (up to 200), right after the import itself.
+  const userId = await requireAuthedUserId();
+  await assertShopOwnership(userId, shopId);
+  if (!contentType.startsWith("image/")) return { ok: false, error: "Only images can be uploaded" };
+  const safeName = fileName.replace(/[^\w.-]+/g, "_").slice(-80) || "photo";
+  const path = `shops/${shopId}/products/${productId}/${Date.now()}-${safeName}`;
+  const target = await productImageUploadTarget(path);
+  return { ok: true, data: target };
 }

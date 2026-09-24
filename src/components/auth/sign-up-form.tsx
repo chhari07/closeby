@@ -19,7 +19,7 @@ import { createShopDraft } from "@/actions/shops";
 /**
  * Sign-up = essential details first (role, name, email, mobile, and shop name
  * for owners), then the emailed 6-digit code. The account is only created in
- * Clerk once the details validate; the Firestore profile (and draft shop) is
+ * Clerk once the details validate; the database profile (and draft shop) is
  * written after the code is verified and the session is active.
  */
 export function SignUpForm({ role: fixedRole }: { role: "buyer" | "shop_owner" }) {

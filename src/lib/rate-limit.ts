@@ -21,7 +21,6 @@ export const RATE_LIMITS = {
   transitionOrder: { limit: 60, windowMs: 60_000 },
   productWrite: { limit: 60, windowMs: 60_000 },
   productImport: { limit: 5, windowMs: 60_000 },
-  firebaseToken: { limit: 20, windowMs: 60_000 },
   // Sign-in/sign-up related: Clerk rate-limits its own OTP endpoints, but the
   // server actions that run right after (writing our own users/shops docs)
   // don't get that protection for free, so they get their own bucket.

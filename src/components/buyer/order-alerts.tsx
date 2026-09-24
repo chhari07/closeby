@@ -3,13 +3,12 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { toast } from "sonner";
-import { getDb } from "@/lib/firebase/client";
-import { useFirebaseReady } from "@/lib/hooks/use-firebase-ready";
+import { getOrder } from "@/actions/orders";
+import { useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { playOrderUpdatePing } from "@/lib/audio/ping";
 import { ensureNotificationPermission, showBrowserNotification } from "@/lib/notify/browser-notify";
-import type { OrderDoc, OrderStatus } from "@/types";
+import type { OrderStatus } from "@/types";
 
 const STATUS_MESSAGE: Partial<Record<OrderStatus, string>> = {
   ACCEPTED: "was accepted",
@@ -28,56 +27,37 @@ const STATUS_MESSAGE: Partial<Record<OrderStatus, string>> = {
 export function BuyerOrderAlerts() {
   const router = useRouter();
   const { userId } = useAuth();
-  const firebaseReady = useFirebaseReady();
-  const isFirstSnapshot = useRef(true);
-  const lastStatus = useRef<Map<string, OrderStatus>>(new Map());
+  const alerted = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (userId) ensureNotificationPermission();
   }, [userId]);
 
-  useEffect(() => {
-    if (!firebaseReady || !userId) return;
-    isFirstSnapshot.current = true;
-    lastStatus.current = new Map();
+  useOrderSignals(userId ? `buyer-orders:${userId}` : null, async (signal) => {
+    if (signal.op !== "UPDATE" || signal.previousStatus === signal.status) return;
+    if (!STATUS_MESSAGE[signal.status]) return; // CANCELLED is buyer-initiated — no alert needed.
+    const key = `${signal.id}:${signal.status}`;
+    if (alerted.current.has(key)) return;
+    alerted.current.add(key);
 
-    const q = query(collection(getDb(), "orders"), where("buyerId", "==", userId));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        if (isFirstSnapshot.current) {
-          isFirstSnapshot.current = false;
-          for (const d of snap.docs) {
-            lastStatus.current.set(d.id, (d.data() as OrderDoc).status);
-          }
-          return;
-        }
-        for (const change of snap.docChanges()) {
-          if (change.type !== "added" && change.type !== "modified") continue;
-          const order = { id: change.doc.id, ...(change.doc.data() as Omit<OrderDoc, "id">) };
-          const previous = lastStatus.current.get(order.id);
-          lastStatus.current.set(order.id, order.status);
-          if (previous === order.status) continue;
+    // Re-read through the server: the signal carries no order details, and
+    // getOrder only returns this buyer's own orders.
+    const order = await getOrder(signal.id);
+    if (!order || order.buyerId !== userId || order.status !== signal.status) return;
+    const message = STATUS_MESSAGE[order.status];
+    if (!message) return;
 
-          const message = STATUS_MESSAGE[order.status];
-          if (!message) continue; // CANCELLED is buyer-initiated — no alert needed.
-
-          playOrderUpdatePing();
-          const body = `Your order from ${order.shopName} ${message}.`;
-          toast.info("Order update", {
-            description: body,
-            action: { label: "View", onClick: () => router.push(`/orders/${order.id}`) },
-          });
-          showBrowserNotification("Order update — CloseBy", body, {
-            tag: `order-${order.id}`,
-            onClick: () => router.push(`/orders/${order.id}`),
-          });
-        }
-      },
-      (err) => console.error("Buyer order alert listener failed", err),
-    );
-    return unsub;
-  }, [userId, firebaseReady, router]);
+    playOrderUpdatePing();
+    const body = `Your order from ${order.shopName} ${message}.`;
+    toast.info("Order update", {
+      description: body,
+      action: { label: "View", onClick: () => router.push(`/orders/${order.id}`) },
+    });
+    showBrowserNotification("Order update — CloseBy", body, {
+      tag: `order-${order.id}`,
+      onClick: () => router.push(`/orders/${order.id}`),
+    });
+  });
 
   return null;
 }

@@ -1,5 +1,6 @@
 import "server-only";
-import { adminDb } from "@/lib/firebase/admin";
+import { db } from "@/lib/db/client";
+import { toProduct } from "@/lib/db/rows";
 import type { OrderDoc } from "@/types";
 
 export interface OrderStockLine {
@@ -20,10 +21,12 @@ export interface OrderStockLine {
  * depend on the model reporting them correctly).
  */
 export async function checkOrderStock(order: Pick<OrderDoc, "shopId" | "items">): Promise<OrderStockLine[]> {
-  const products = adminDb().collection("shops").doc(order.shopId).collection("products");
-  const docs = order.items.length ? await adminDb().getAll(...order.items.map((i) => products.doc(i.productId))) : [];
-  return order.items.map((item, idx) => {
-    const p = docs[idx]?.data();
+  const rows = order.items.length
+    ? await db()`select * from products where shop_id = ${order.shopId} and id = any(${order.items.map((i) => i.productId)})`
+    : [];
+  const byId = new Map(rows.map((r) => [r.id as string, toProduct(r)]));
+  return order.items.map((item) => {
+    const p = byId.get(item.productId);
     const available = p && p.inStock ? Math.max(0, Number(p.stock) || 0) : 0;
     return {
       productId: item.productId,
