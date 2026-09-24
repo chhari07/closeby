@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getMe } from "@/actions/users";
 import { Button } from "@/components/ui/button";
+import { HowItWorks } from "@/components/home/how-it-works";
+import { Features } from "@/components/home/features";
 import {
   ArrowRight,
   MapPin,
@@ -126,6 +128,9 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
+      <HowItWorks />
+      <Features />
 
       {/* SHOP OWNER */}
       <section className="bg-forest text-cream px-6 py-16 sm:py-20">

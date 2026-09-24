@@ -266,6 +266,123 @@
   }
 }
 
+/* Landing illustrations (components/home). SVG parts animate around their own
+   box unless a transform-origin is set inline. */
+.cb-float,
+.cb-bob,
+.cb-drop,
+.cb-pop,
+.cb-grow,
+.cb-ring,
+.cb-twinkle,
+.cb-step,
+.cb-type,
+.cb-result,
+.cb-blink {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-fill-mode: both;
+}
+.cb-float { animation: cb-float 3.2s ease-in-out infinite; }
+.cb-bob { animation: cb-bob 1.6s ease-in-out infinite; }
+.cb-drive { animation: cb-drive 6s linear infinite; }
+.cb-road { animation: cb-road 0.8s linear infinite; }
+.cb-drop { animation: cb-drop 3s ease-in infinite; }
+.cb-pop { transform-origin: bottom; animation: cb-pop 5s ease-out infinite; }
+.cb-grow { transform-origin: bottom; animation: cb-grow 4.5s ease-out infinite; }
+.cb-swing { animation: cb-swing 2.4s ease-in-out infinite; }
+.cb-ring { animation: cb-ring 1.8s ease-out infinite; }
+.cb-twinkle { animation: cb-twinkle 2s ease-in-out infinite; }
+.cb-step { animation: cb-step 4.5s ease-in-out infinite; }
+.cb-dash { animation: cb-road 1.2s linear infinite; }
+.cb-draw { stroke-dasharray: 220; animation: cb-draw 4.5s ease-out infinite; }
+.cb-type { animation: cb-type 6s steps(1) infinite; }
+.cb-result { animation: cb-result 6s ease-out infinite; }
+.cb-blink { animation: cb-blink 1s steps(1) infinite; }
+
+@keyframes cb-float { 50% { transform: translateY(-6px); } }
+@keyframes cb-bob { 50% { transform: translateY(-10px); } }
+@keyframes cb-drive { from { transform: translateX(-70px); } to { transform: translateX(250px); } }
+@keyframes cb-road { to { stroke-dashoffset: -18; } }
+@keyframes cb-drop {
+  0% { transform: translateY(-40px); opacity: 0; }
+  20% { opacity: 1; }
+  60% { transform: translateY(18px); opacity: 1; }
+  75%, 100% { transform: translateY(30px); opacity: 0; }
+}
+@keyframes cb-pop {
+  0% { transform: scale(0); }
+  12% { transform: scale(1.12); }
+  18%, 86% { transform: scale(1); }
+  94%, 100% { transform: scale(0); }
+}
+@keyframes cb-grow {
+  0% { transform: scaleY(0.08); }
+  30%, 85% { transform: scaleY(1); }
+  100% { transform: scaleY(0.08); }
+}
+@keyframes cb-swing {
+  0%, 100% { transform: rotate(-7deg); }
+  50% { transform: rotate(7deg); }
+}
+@keyframes cb-ring {
+  from { transform: scale(1); opacity: 0.8; }
+  to { transform: scale(2.2); opacity: 0; }
+}
+@keyframes cb-twinkle {
+  0%, 100% { transform: scale(0.4); opacity: 0.4; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
+@keyframes cb-step {
+  0%, 8% { opacity: 0.25; }
+  18%, 88% { opacity: 1; }
+  100% { opacity: 0.25; }
+}
+@keyframes cb-draw {
+  0% { stroke-dashoffset: 220; }
+  35%, 85% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: 220; }
+}
+@keyframes cb-type {
+  0% { opacity: 0; }
+  4%, 86% { opacity: 1; }
+  90%, 100% { opacity: 0; }
+}
+@keyframes cb-result {
+  0%, 30% { opacity: 0; transform: translateY(8px); }
+  38%, 85% { opacity: 1; transform: none; }
+  92%, 100% { opacity: 0; transform: none; }
+}
+@keyframes cb-blink { 50% { opacity: 0; } }
+@keyframes cb-wiggle {
+  25% { transform: rotate(-10deg); }
+  75% { transform: rotate(10deg); }
+}
+
+/* Scroll-in reveal, toggled by components/home/reveal.tsx */
+.cb-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.cb-reveal[data-visible="true"] {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="cb-"] {
+    animation: none !important;
+  }
+  .cb-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
+
 /* Print only the order bill (Print / Save as PDF on an order). */
 @media print {
   body * {

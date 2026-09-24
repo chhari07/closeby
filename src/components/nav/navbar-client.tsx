@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
-import { LogOut } from "lucide-react";
+import { LogOut, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { cn } from "@/lib/utils";
@@ -66,6 +66,21 @@ export function NavbarClient({
 
           {!signedIn && (
             <div className="flex items-center gap-2">
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "text-cream/80 hover:text-cream hover:bg-white/10",
+                  pathname === "/how-it-works" && "bg-white/10 text-cream"
+                )}
+              >
+                {/* Icon-only on phones so it fits beside Log in / Sign up. */}
+                <Link href="/how-it-works" aria-label="How it works" title="How it works">
+                  <Info className="size-4 sm:hidden" />
+                  <span className="hidden sm:inline">How it works</span>
+                </Link>
+              </Button>
               <Button asChild variant="ghost" size="sm" className="text-cream hover:bg-white/10 hover:text-cream">
                 <Link href="/get-started?mode=signin">Log in</Link>
               </Button>
