@@ -24,6 +24,7 @@ import {
   SHOP_VISIBLE_PAYMENT,
 } from "@/lib/payments/orders";
 import type { PaymentProvider } from "@/types";
+import { alertBuyerOrderUpdate, alertShopNewOrder, queueAlert } from "@/lib/email/alerts";
 
 export interface PlaceOrderRejection {
   reason: string;
@@ -266,7 +267,11 @@ export async function placeOrder(
   }
 
   invalidateCatalog(shopId); // stock was reserved
-  if (!online) return { ok: true, data: { orderId } };
+  if (!online) {
+    // Email the owner if they're not on the site (online orders: once paid).
+    await queueAlert((base) => alertShopNewOrder(orderId, base));
+    return { ok: true, data: { orderId } };
+  }
 
   const payment = await openPaymentSession(orderId);
   if (!payment) {
@@ -490,6 +495,8 @@ export async function transitionOrder(
   let stockReturnedTo: string | null = null;
   /** Set when a paid online order is rejected/cancelled: refunded after the transaction commits. */
   let refundFor: string | null = null;
+  /** Who made the change — the buyer gets an email only for the shop's moves. */
+  let actor: Actor | null = null;
 
   // Read the current status (row locked FOR UPDATE), check it against the
   // transition map, and write the new status atomically — otherwise two
@@ -520,6 +527,7 @@ export async function transitionOrder(
         throw new TransitionAbort("This order is waiting for the buyer's payment");
       }
 
+      actor = by;
       const check = isValidTransition(order.status, toParsed.data, by);
       if (!check.ok) {
         throw new TransitionAbort(
@@ -590,6 +598,10 @@ export async function transitionOrder(
   // Outside the transaction: a network call to Razorpay. A failure is
   // recorded as "refund_failed" for a manual refund, never lost.
   if (refundFor) await refundOrder(refundFor);
+  if (actor === "shop") {
+    const status = toParsed.data;
+    await queueAlert((base) => alertBuyerOrderUpdate(orderId, status, base));
+  }
   return { ok: true };
 }
 

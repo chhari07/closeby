@@ -8,6 +8,7 @@ import { rateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { buildConversation, buildThread, type Conversation, type ThreadItem, type Viewer } from "@/lib/messages";
 import type { ActionResult } from "./types";
 import type { OrderChatMessage, OrderDoc } from "@/types";
+import { alertChatMessage, queueAlert } from "@/lib/email/alerts";
 
 /**
  * Messages = one conversation per order between its buyer and the shop:
@@ -120,6 +121,10 @@ export async function sendOrderMessage(orderId: string, body: string): Promise<A
     values (${orderId}, ${opened.viewer}, ${opened.userId}, ${parsed.data}, ${now})
     returning *
   `;
+  // Email the other side if they're not on the site (throttled per conversation).
+  const sender = opened.viewer;
+  const text = parsed.data;
+  await queueAlert((base) => alertChatMessage(orderId, sender, text, base));
   // Sending counts as having read everything up to now.
   await (opened.viewer === "buyer"
     ? db()`update orders set buyer_read_at = ${now} where id = ${orderId}`

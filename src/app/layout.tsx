@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Anton } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { BuyerOrderAlerts } from "@/components/buyer/order-alerts";
+import { PresenceHeartbeat } from "@/components/presence-heartbeat";
 import { OfflineBanner } from "@/components/offline-banner";
 import { Navbar } from "@/components/nav/navbar";
 import { Footer } from "@/components/nav/footer";
@@ -35,6 +36,7 @@ export default function RootLayout({
       <html lang="en" className={cn("font-sans", plusJakarta.variable, anton.variable)}>
         <body className={cn(plusJakarta.variable, "font-sans antialiased")}>
           <BuyerOrderAlerts />
+          <PresenceHeartbeat />
           <OfflineBanner />
           <div className="flex min-h-svh flex-col">
             <Navbar />

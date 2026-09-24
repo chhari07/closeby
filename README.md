@@ -93,6 +93,16 @@ hidden from the shop until the payment is confirmed server-side
 the stock returned. A paid order that's rejected or cancelled is refunded
 in full automatically. `npm run payouts` lists what each shop is owed.
 
+### 4c. Email alerts (optional) — Gmail
+
+When someone isn't on CloseBy, new orders, order updates, refunds and chat
+messages are emailed to them (`src/lib/email/alerts.ts`; each person can
+turn it off in Profile). Add a Gmail **App password** (Google Account >
+Security > 2-Step Verification > App passwords) to `.env.local`:
+`GMAIL_USER=you@gmail.com` and `GMAIL_APP_PASSWORD=...`. Without them the
+emails are printed in the dev-server terminal instead. `APP_URL` (optional)
+sets the site address used in email links.
+
 ### 5. Create the tables and seed reference data
 
 ```bash
