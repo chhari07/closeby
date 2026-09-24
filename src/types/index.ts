@@ -130,6 +130,8 @@ export interface ProductDoc {
   /** When stock last went UP (added, imported, or edited to a higher count).
    *  Optional: products from before this field existed have no record. */
   lastRestockedAt?: number;
+  /** When the product was added (epoch ms); missing for products added before this was tracked. */
+  createdAt?: number;
   updatedAt: number;
 }
 

@@ -20,6 +20,8 @@ import { OpenToggle } from "@/components/dashboard/open-toggle";
 import { formatPaise } from "@/lib/money";
 import { getShopIdeasStatus, listMyShopIdeas } from "@/actions/ai";
 import { ShopIdeasCard } from "@/components/dashboard/shop-ideas-card";
+import { getOwnerStats } from "@/actions/stats";
+import { OwnerStatsCard } from "@/components/dashboard/owner-stats-card";
 
 export const dynamic = "force-dynamic";
 
@@ -29,11 +31,12 @@ export default async function DashboardHomePage() {
 
   // Step 1.3: read the running product counter + a bounded low-stock query
   // instead of fetching the whole catalog just to count/filter it in memory.
-  const [lowStock, { counts, revenueToday }, ideas, ideasStatus] = await Promise.all([
+  const [lowStock, { counts, revenueToday }, ideas, ideasStatus, ownerStats] = await Promise.all([
     getLowStockProducts(shop.id),
     getTodayOrderCounts(shop.id),
     listMyShopIdeas(shop.id),
     getShopIdeasStatus(shop.id),
+    getOwnerStats(shop.id),
   ]);
   const inProgress = counts.ACCEPTED + counts.PREPARING + counts.READY;
 
@@ -83,6 +86,10 @@ export default async function DashboardHomePage() {
           Icon={IndianRupee}
           tone="bg-emerald-100 text-emerald-700"
         />
+      </div>
+
+      <div className="mb-6">
+        <OwnerStatsCard stats={ownerStats} />
       </div>
 
       <div className="mb-6">
