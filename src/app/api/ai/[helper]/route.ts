@@ -20,7 +20,7 @@ import type { AiHelperName, AiRunResult } from "@/types/ai";
 import { getShopCatalog } from "@/lib/catalog";
 import { getConversation } from "@/actions/messages";
 import { buildChatReplyContext } from "@/lib/ai/chat-context";
-import { describeCandidates, loadIdeaCandidates } from "@/lib/shop-ideas";
+import { describeCandidates, getIdeasStatus, loadIdeaCandidates, markIdeasGenerated } from "@/lib/shop-ideas";
 
 export const dynamic = "force-dynamic";
 
@@ -156,10 +156,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
 
   // Ideas: work out the candidates first — with nothing worth suggesting
   // (e.g. no sales history yet), answer straight away without a model call.
+  // Also: no new run while the last ideas are still current (same data,
+  // within the cooldown) — see getIdeasStatus.
   let ideasInput: string | null = null;
+  let ideasFingerprint: string | null = null;
   if (helperDef.name === "shopIdeas" && shopId) {
+    const status = await getIdeasStatus(shopId);
+    if (!status.canRefresh) {
+      return NextResponse.json({
+        ok: true,
+        data: { count: 0, upToDate: true, summary: "Your ideas are up to date — nothing has changed since they were made." },
+      });
+    }
+    ideasFingerprint = status.fingerprint;
     const candidates = await loadIdeaCandidates(shopId);
     if (candidates.length === 0) {
+      await markIdeasGenerated(shopId, ideasFingerprint);
       return NextResponse.json({
         ok: true,
         data: { count: 0, summary: "Nothing to suggest right now — stock and sales look fine, or there isn't enough sales history yet." },
@@ -390,6 +402,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
     const stock = order && order.shopId === shopId ? await checkOrderStock(order) : [];
     output = { ...(output as object), stock };
   }
+
+  if (helperDef.name === "shopIdeas" && shopId && ideasFingerprint) await markIdeasGenerated(shopId, ideasFingerprint);
 
   return NextResponse.json({ ok: true, data: output });
 }

@@ -18,7 +18,7 @@ import { getTodayOrderCounts } from "@/actions/orders";
 import { AutoRefresh } from "@/components/dashboard/auto-refresh";
 import { OpenToggle } from "@/components/dashboard/open-toggle";
 import { formatPaise } from "@/lib/money";
-import { listMyShopIdeas } from "@/actions/ai";
+import { getShopIdeasStatus, listMyShopIdeas } from "@/actions/ai";
 import { ShopIdeasCard } from "@/components/dashboard/shop-ideas-card";
 
 export const dynamic = "force-dynamic";
@@ -29,10 +29,11 @@ export default async function DashboardHomePage() {
 
   // Step 1.3: read the running product counter + a bounded low-stock query
   // instead of fetching the whole catalog just to count/filter it in memory.
-  const [lowStock, { counts, revenueToday }, ideas] = await Promise.all([
+  const [lowStock, { counts, revenueToday }, ideas, ideasStatus] = await Promise.all([
     getLowStockProducts(shop.id),
     getTodayOrderCounts(shop.id),
     listMyShopIdeas(shop.id),
+    getShopIdeasStatus(shop.id),
   ]);
   const inProgress = counts.ACCEPTED + counts.PREPARING + counts.READY;
 
@@ -85,7 +86,7 @@ export default async function DashboardHomePage() {
       </div>
 
       <div className="mb-6">
-        <ShopIdeasCard shopId={shop.id} initialIdeas={ideas} />
+        <ShopIdeasCard shopId={shop.id} initialIdeas={ideas} initialStatus={ideasStatus} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">

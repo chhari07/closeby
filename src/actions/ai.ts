@@ -2,7 +2,13 @@
 
 import { db } from "@/lib/db/client";
 import { findProduct, toApproval } from "@/lib/db/rows";
-import { pendingShopIdeas, type ShopIdeaDraft } from "@/lib/shop-ideas";
+import {
+  getIdeasStatus,
+  ideasFingerprint,
+  pendingShopIdeas,
+  type IdeasStatus,
+  type ShopIdeaDraft,
+} from "@/lib/shop-ideas";
 import { formatPaise } from "@/lib/money";
 import { requireUserId, assertShopOwnership } from "@/lib/auth/guards";
 import { setHelperEnabled, getHelperStatusesForShop } from "@/lib/ai/settings";
@@ -132,6 +138,15 @@ export async function setMyShopAiHelperEnabled(
 
 // --- Step 3.3: owner restock & price ideas ----------------------------------
 
+/** Whether "Get ideas" is allowed now, and when the last ideas were made. */
+export async function getShopIdeasStatus(shopId: string): Promise<IdeasStatus> {
+  const userId = await requireUserId();
+  await assertShopOwnership(userId, shopId);
+  const { fingerprint: _fingerprint, ...status } = await getIdeasStatus(shopId);
+  void _fingerprint;
+  return status;
+}
+
 export async function listMyShopIdeas(shopId: string): Promise<(ApprovalDoc & { draft: ShopIdeaDraft })[]> {
   const userId = await requireUserId();
   await assertShopOwnership(userId, shopId);
@@ -166,9 +181,15 @@ export async function applyShopIdea(approvalId: string, price?: number): Promise
     if (typeof product.mrp === "number" && product.mrp > 0 && paise > product.mrp) {
       return { ok: false, error: `Price can't be above the MRP (${formatPaise(product.mrp)})` };
     }
+    const before = await getIdeasStatus(draft.shopId);
     const result = await updateProduct(draft.shopId, draft.productId, { price: paise });
     if (!result.ok) return result;
     edited = paise !== draft.suggestedPrice;
+    // Acting on an idea isn't "new data" — don't let it unlock a fresh (paid)
+    // run. Only when nothing else had changed, so real changes still count.
+    if (!before.dataChanged && before.generatedAt !== null) {
+      await db()`update shops set ideas_fingerprint = ${await ideasFingerprint(draft.shopId)} where id = ${draft.shopId}`;
+    }
   }
 
   await decideApproval(approvalId, "approved", edited);

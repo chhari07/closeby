@@ -158,3 +158,77 @@ export async function pendingShopIdeas(userId: string, shopId: string): Promise<
     .map((r) => toApproval(r) as ApprovalDoc & { draft: ShopIdeaDraft })
     .sort((a, b) => rank[a.draft.kind] - rank[b.draft.kind] || (a.draft.facts.daysLeft ?? 99) - (b.draft.facts.daysLeft ?? 99));
 }
+
+// --- When "Get ideas" may run --------------------------------------------------
+// Ideas come from 30 days of sales, so re-asking the AI minutes later about
+// the same numbers only costs money and reshuffles the wording. A new run
+// is allowed the first time, whenever the sales / stock / prices changed
+// since the last one, or once the cooldown has passed; after a week the
+// dashboard refreshes them by itself.
+
+export const IDEAS_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+export const IDEAS_AUTO_REFRESH_MS = 7 * 86_400_000;
+
+export interface IdeasStatus {
+  generatedAt: number | null;
+  /** Orders or products changed since the ideas were made. */
+  dataChanged: boolean;
+  /** "Get ideas" is allowed right now. */
+  canRefresh: boolean;
+  /** When it becomes allowed if nothing changes (null = allowed now). */
+  nextRefreshAt: number | null;
+  /** A week has passed: the dashboard should refresh them automatically. */
+  autoRefreshDue: boolean;
+}
+
+/** Changes whenever an order (new / status) or a product (stock, price, add, delete) changes. */
+export async function ideasFingerprint(shopId: string): Promise<string> {
+  const [row] = await db()`
+    select
+      (select count(*) || ':' || coalesce(max(updated_at), 0) from orders
+        where shop_id = ${shopId} and payment_status = any(${[...SHOP_VISIBLE_PAYMENT]})) as orders,
+      (select count(*) || ':' || coalesce(max(updated_at), 0) from products where shop_id = ${shopId}) as products
+  `;
+  return `${row!.orders}|${row!.products}`;
+}
+
+/** Pure rule, unit-tested: may ideas be (re)made now? */
+export function decideIdeasStatus(
+  generatedAt: number | null,
+  savedFingerprint: string | null,
+  currentFingerprint: string,
+  now: number,
+): IdeasStatus {
+  if (generatedAt === null) {
+    return { generatedAt, dataChanged: false, canRefresh: true, nextRefreshAt: null, autoRefreshDue: false };
+  }
+  const dataChanged = savedFingerprint !== currentFingerprint;
+  const cooledDown = now - generatedAt >= IDEAS_COOLDOWN_MS;
+  const canRefresh = dataChanged || cooledDown;
+  return {
+    generatedAt,
+    dataChanged,
+    canRefresh,
+    nextRefreshAt: canRefresh ? null : generatedAt + IDEAS_COOLDOWN_MS,
+    autoRefreshDue: now - generatedAt >= IDEAS_AUTO_REFRESH_MS,
+  };
+}
+
+export async function getIdeasStatus(shopId: string): Promise<IdeasStatus & { fingerprint: string }> {
+  const [[shop], fingerprint] = await Promise.all([
+    db()`select ideas_generated_at, ideas_fingerprint from shops where id = ${shopId}`,
+    ideasFingerprint(shopId),
+  ]);
+  const status = decideIdeasStatus(
+    (shop?.ideasGeneratedAt as number | null) ?? null,
+    (shop?.ideasFingerprint as string | null) ?? null,
+    fingerprint,
+    Date.now(),
+  );
+  return { ...status, fingerprint };
+}
+
+/** Called after a successful run, with the fingerprint taken BEFORE it (so changes during the run still count). */
+export async function markIdeasGenerated(shopId: string, fingerprint: string): Promise<void> {
+  await db()`update shops set ideas_generated_at = ${Date.now()}, ideas_fingerprint = ${fingerprint} where id = ${shopId}`;
+}

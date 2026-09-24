@@ -48,7 +48,10 @@ never changes stock (it's your shopping list for the supplier).
 | 7 | [ ] | Type a different valid price, press Apply. | Your typed price is saved, not the AI's. |
 | 8 | [ ] | On a **Restock** idea press **Done**. | The idea disappears. **Stock in Inventory is unchanged** (you update it when the goods arrive). |
 | 9 | [ ] | On any idea press **Dismiss**, then reload the page. | It's gone and stays gone. |
-| 10 | [ ] | Press **Get ideas** again. | The old unanswered ideas are replaced by a fresh list — no duplicates. |
+| 10 | [ ] | Right after getting ideas, look at the button. | It says **Up to date** (greyed out), with "Made just now. New ideas when your sales or stock change, or after <time 6 h from now>." No AI call can be made — the server refuses too. |
+| 10a | [ ] | Apply a price idea, then look at the button again. | Still **Up to date** — acting on an idea doesn't count as new data. |
+| 10b | [ ] | Change something real: edit a product's stock in Inventory (or place an order as a buyer), then come back to Dashboard. | Within ~15 s the button turns back to **Refresh ideas** with "Your sales or stock changed since — refresh for new ideas." Press it: a fresh list replaces the old one, no duplicates. |
+| 10c | [ ] | Weekly auto-refresh: run `npm run seed:sales -- --age-ideas 8`, then reload Dashboard. | Without pressing anything, the card shows "Updating your weekly ideas…" and then a fresh list. (`--age-ideas 7` or more triggers it; `--age-ideas 7` minus a little does not.) |
 | 11 | [ ] | Settings → AI → switch off **AI restock & price ideas**, then Get ideas. | Error: "This AI helper is turned off right now." Switch it back on after. |
 | 12 | [ ] | After `npm run seed:sales -- --undo`, press Get ideas. | "Nothing to suggest right now" — and no AI call is made (no cost) when there's no sales history to go on. |
 

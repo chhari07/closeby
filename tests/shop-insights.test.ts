@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
 import { clampIdea, ideaCandidates, productFacts, DAY_MS } from "../src/lib/shop-insights";
 import type { OrderDoc, ProductDoc } from "../src/types";
 
@@ -95,5 +97,29 @@ describe("ideaCandidates", () => {
     const bulb = cands.find((c) => c.facts.productId === "bulb")!;
     expect(clampIdea(bulb, { qty: 100000 }).qty).toBe(bulb.qtyRange![1]);
     expect(clampIdea(bulb, {}).qty).toBe(bulb.defaultQty);
+  });
+});
+
+const { decideIdeasStatus, IDEAS_COOLDOWN_MS, IDEAS_AUTO_REFRESH_MS } = await import("../src/lib/shop-ideas");
+
+describe("when ideas may be refreshed", () => {
+  const T = 1_000_000_000_000;
+
+  it("allows the first run", () => {
+    expect(decideIdeasStatus(null, null, "fp", T)).toMatchObject({ canRefresh: true, autoRefreshDue: false });
+  });
+
+  it("blocks a re-run on the same data inside the cooldown", () => {
+    const s = decideIdeasStatus(T, "fp", "fp", T + 60_000);
+    expect(s).toMatchObject({ canRefresh: false, dataChanged: false, nextRefreshAt: T + IDEAS_COOLDOWN_MS });
+  });
+
+  it("allows it early when sales or stock changed", () => {
+    expect(decideIdeasStatus(T, "fp", "fp2", T + 60_000)).toMatchObject({ canRefresh: true, dataChanged: true });
+  });
+
+  it("allows it again after the cooldown, and asks for an auto-refresh after a week", () => {
+    expect(decideIdeasStatus(T, "fp", "fp", T + IDEAS_COOLDOWN_MS)).toMatchObject({ canRefresh: true, autoRefreshDue: false });
+    expect(decideIdeasStatus(T, "fp", "fp", T + IDEAS_AUTO_REFRESH_MS)).toMatchObject({ canRefresh: true, autoRefreshDue: true });
   });
 });

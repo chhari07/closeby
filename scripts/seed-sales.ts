@@ -6,6 +6,8 @@
  *   npm run seed:sales                     # the only live shop (or the first one)
  *   npm run seed:sales -- --shop <shopId>
  *   npm run seed:sales -- --undo           # delete these test orders, restore the stock
+ *   npm run seed:sales -- --age-ideas 8    # pretend the shop's AI ideas were made 8 days ago
+ *                                          # (tests the cooldown / weekly auto-refresh without waiting)
  *
  * What it does (all printed as it goes):
  * - picks a fast seller (~3/day) and a steady seller (~2/day) and lowers
@@ -154,8 +156,25 @@ async function seed(shopArg?: string) {
   console.log("Undo later with: npm run seed:sales -- --undo");
 }
 
+async function ageIdeas(days: number, shopArg?: string) {
+  if (!Number.isFinite(days) || days < 0) {
+    console.error("Usage: npm run seed:sales -- --age-ideas <days>");
+    process.exit(1);
+  }
+  const rows = shopArg
+    ? await sql`update shops set ideas_generated_at = ${Date.now() - days * DAY} where id = ${shopArg} and ideas_generated_at is not null returning name`
+    : await sql`update shops set ideas_generated_at = ${Date.now() - days * DAY} where ideas_generated_at is not null returning name`;
+  if (rows.length === 0) console.log("No shop has made AI ideas yet — press Get ideas once first.");
+  for (const r of rows) console.log(`AI ideas for ${r.name} now look ${days} day(s) old.`);
+}
+
 const args = process.argv.slice(2);
-(args.includes("--undo") ? undo() : seed(args.includes("--shop") ? args[args.indexOf("--shop") + 1] : undefined))
+const shopArg = args.includes("--shop") ? args[args.indexOf("--shop") + 1] : undefined;
+(args.includes("--undo")
+  ? undo()
+  : args.includes("--age-ideas")
+    ? ageIdeas(Number(args[args.indexOf("--age-ideas") + 1]), shopArg)
+    : seed(shopArg))
   .then(() => sql.end())
   .catch(async (err) => {
     console.error(err);

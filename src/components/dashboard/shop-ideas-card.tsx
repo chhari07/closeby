@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { formatDistanceToNow, format } from "date-fns";
 import { toast } from "sonner";
-import { Lightbulb, Loader2, PackagePlus, Snail, Sparkles, Tag } from "lucide-react";
+import { CheckCircle2, Lightbulb, Loader2, PackagePlus, Snail, Sparkles, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { applyShopIdea, listMyShopIdeas, rejectApproval } from "@/actions/ai";
+import { applyShopIdea, getShopIdeasStatus, listMyShopIdeas, rejectApproval } from "@/actions/ai";
+import { useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { formatPaise } from "@/lib/money";
 import type { ApprovalDoc } from "@/types/ai";
-import type { ShopIdeaDraft } from "@/lib/shop-ideas";
+import type { IdeasStatus, ShopIdeaDraft } from "@/lib/shop-ideas";
 
 type Idea = ApprovalDoc & { draft: ShopIdeaDraft };
 
@@ -24,14 +26,42 @@ const rupees = (paise: number) => String(Math.round(paise / 100));
  * Step 3.3 — the owner's AI restock & price ideas. Ideas are suggestions
  * only: a price changes when the owner presses Apply (and never above MRP);
  * a restock idea never touches stock.
+ *
+ * "Get ideas" is only offered when it can say something new: the first
+ * time, after sales / stock / prices changed, or 6 hours later (the server
+ * enforces the same rule). After a week the ideas refresh by themselves.
  */
-export function ShopIdeasCard({ shopId, initialIdeas }: { shopId: string; initialIdeas: Idea[] }) {
+export function ShopIdeasCard({
+  shopId,
+  initialIdeas,
+  initialStatus,
+}: {
+  shopId: string;
+  initialIdeas: Idea[];
+  initialStatus: IdeasStatus;
+}) {
   const [ideas, setIdeas] = useState(initialIdeas);
+  const [status, setStatus] = useState(initialStatus);
   const [loading, setLoading] = useState(false);
+  const [autoRunning, setAutoRunning] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
-  async function getIdeas() {
+  const refreshStatus = useCallback(() => {
+    void getShopIdeasStatus(shopId)
+      .then(setStatus)
+      .catch(() => {});
+  }, [shopId]);
+
+  // A new order (or a status change) may make fresh ideas worthwhile.
+  useOrderSignals(`shop-orders:${shopId}`, refreshStatus);
+  // The dashboard re-renders every few seconds; pick up its fresher status.
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus.generatedAt, initialStatus.canRefresh, initialStatus.dataChanged]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function getIdeas(auto = false) {
     setLoading(true);
+    setAutoRunning(auto);
     setNote(null);
     try {
       const res = await fetch("/api/ai/shopIdeas", {
@@ -44,15 +74,29 @@ export function ShopIdeasCard({ shopId, initialIdeas }: { shopId: string; initia
         toast.error(body.error ?? "Couldn't get ideas right now");
         return;
       }
-      const fresh = await listMyShopIdeas(shopId);
+      const [fresh, freshStatus] = await Promise.all([listMyShopIdeas(shopId), getShopIdeasStatus(shopId)]);
       setIdeas(fresh);
+      setStatus(freshStatus);
       setNote(fresh.length === 0 ? body.data.summary || "Nothing to suggest right now." : body.data.summary);
     } catch {
-      toast.error("Couldn't reach the AI helper");
+      if (!auto) toast.error("Couldn't reach the AI helper");
     } finally {
       setLoading(false);
+      setAutoRunning(false);
     }
   }
+
+  // Weekly: ideas older than 7 days refresh on their own when the dashboard opens.
+  const autoTried = useRef(false);
+  useEffect(() => {
+    if (autoTried.current || !status.autoRefreshDue || !status.canRefresh) return;
+    autoTried.current = true;
+    void getIdeas(true);
+    // Runs once per visit, when the status first says a refresh is due.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status.autoRefreshDue, status.canRefresh]);
+
+  const upToDate = status.generatedAt !== null && !status.canRefresh;
 
   const remove = (id: string) => setIdeas((list) => list.filter((i) => i.id !== id));
 
@@ -64,11 +108,25 @@ export function ShopIdeasCard({ shopId, initialIdeas }: { shopId: string; initia
           <p className="font-semibold">AI ideas</p>
           <span className="text-muted-foreground text-xs">restock &amp; prices, from your last 30 days of sales</span>
         </div>
-        <Button size="sm" variant="outline" disabled={loading} onClick={getIdeas}>
-          {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
-          {ideas.length > 0 ? "Refresh ideas" : "Get ideas"}
+        <Button size="sm" variant="outline" disabled={loading || upToDate} onClick={() => getIdeas()}>
+          {loading ? <Loader2 className="size-3.5 animate-spin" /> : upToDate ? <CheckCircle2 className="size-3.5" /> : <Sparkles className="size-3.5" />}
+          {upToDate ? "Up to date" : status.generatedAt ? "Refresh ideas" : "Get ideas"}
         </Button>
       </div>
+
+      {status.generatedAt !== null && (
+        <p className="text-muted-foreground mb-3 text-xs">
+          {autoRunning
+            ? "Updating your weekly ideas…"
+            : `Made ${formatDistanceToNow(new Date(status.generatedAt), { addSuffix: true })}. `}
+          {!autoRunning &&
+            (upToDate
+              ? `New ideas when your sales or stock change, or after ${format(new Date(status.nextRefreshAt!), "h:mm a")}.`
+              : status.dataChanged
+                ? "Your sales or stock changed since — refresh for new ideas."
+                : "You can refresh them now.")}
+        </p>
+      )}
 
       {note && <p className="text-muted-foreground mb-3 text-sm">{note}</p>}
 
