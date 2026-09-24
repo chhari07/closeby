@@ -14,6 +14,7 @@ import {
   PackageCheck,
   SendHorizontal,
   ShoppingBag,
+  Sparkles,
   Undo2,
   type LucideIcon,
 } from "lucide-react";
@@ -55,6 +56,9 @@ export function ChatThread({ initial, className }: { initial: ConversationView; 
   const [view, setView] = useState(initial);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[] | null>(null);
+  const textarea = useRef<HTMLTextAreaElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const me = view.viewer;
   const other = me === "buyer" ? view.shopName : view.buyerName || "Buyer";
@@ -105,6 +109,44 @@ export function ChatThread({ initial, className }: { initial: ConversationView; 
     );
   }
 
+  /**
+   * AI reply suggestions (the chatReply helper): 3 short replies written for
+   * whichever side this is, from the real conversation and order. Picking
+   * one only fills the box — the person edits it and sends it themselves.
+   */
+  async function suggestReplies() {
+    if (suggesting) return;
+    setSuggesting(true);
+    try {
+      const res = await fetch("/api/ai/chatReply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: view.orderId, input: draft }),
+      });
+      const body: { data?: { replies: string[] }; error?: string } = await res.json().catch(() => ({}));
+      if (!res.ok || !body.data?.replies?.length) {
+        toast.error(body.error ?? "Couldn't get AI suggestions right now");
+        return;
+      }
+      setSuggestions(body.data.replies);
+    } catch {
+      toast.error("Couldn't reach the AI helper");
+    } finally {
+      setSuggesting(false);
+    }
+  }
+
+  function pickSuggestion(text: string) {
+    setDraft(text);
+    setSuggestions(null);
+    requestAnimationFrame(() => {
+      const el = textarea.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(text.length, text.length);
+    });
+  }
+
   const firstUnread = view.items.find((item) => isUnreadFor(item, me, readAt))?.id;
   let lastDay = "";
 
@@ -138,14 +180,56 @@ export function ChatThread({ initial, className }: { initial: ConversationView; 
         })}
       </div>
 
+      {suggestions && (
+        <div className="flex flex-col gap-1.5 border-t pt-2">
+          <div className="flex items-center justify-between">
+            <p className="text-muted-foreground flex items-center gap-1 text-[11px] font-medium">
+              <Sparkles className="size-3" /> AI suggestions — tap one to edit, then send
+            </p>
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-foreground text-[11px] underline"
+              onClick={() => setSuggestions(null)}
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {suggestions.map((text) => (
+              <button
+                key={text}
+                type="button"
+                onClick={() => pickSuggestion(text)}
+                className="border-primary/30 bg-primary/5 hover:bg-primary/10 rounded-xl border px-3 py-2 text-left text-sm"
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form
-        className="flex items-end gap-2 border-t pt-3"
+        className={cn("flex items-end gap-2 pt-3", !suggestions && "border-t")}
         onSubmit={(e) => {
           e.preventDefault();
           void send();
         }}
       >
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="size-11 shrink-0"
+          disabled={suggesting}
+          onClick={suggestReplies}
+          aria-label="Suggest a reply with AI"
+          title="AI reply suggestions"
+        >
+          {suggesting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+        </Button>
         <Textarea
+          ref={textarea}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {

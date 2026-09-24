@@ -51,7 +51,7 @@ export async function setHelperEnabled(
 export async function getHelperStatusesForShop(
   shopId: string,
 ): Promise<Record<AiHelperName, boolean>> {
-  const names: AiHelperName[] = ["hello", "buyerCartDraft", "orderAdvice", "stockDraft"];
+  const names: AiHelperName[] = ["hello", "buyerCartDraft", "orderAdvice", "stockDraft", "chatReply"];
   const statuses = await Promise.all(names.map((n) => isHelperEnabled(n, shopId)));
   return Object.fromEntries(names.map((n, i) => [n, statuses[i]])) as Record<AiHelperName, boolean>;
 }

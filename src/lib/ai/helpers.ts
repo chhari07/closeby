@@ -175,6 +175,32 @@ export const HELPERS: Record<AiHelperName, HelperDef> = {
     outputSchema: z.object({ answer: z.string().max(500) }),
     outputShapeHint: '{"answer": string}',
   },
+
+  chatReply: {
+    name: "chatReply",
+    // Both sides of an order chat; the route checks the caller is that
+    // order's buyer or its shop's owner before building any context.
+    role: "any",
+    model: AI_MODELS.haiku,
+    maxToolSteps: 1,
+    systemPrompt:
+      "You suggest short replies in a CloseBy order chat between a buyer and a " +
+      `local shop. ${DATA_RULE} The trusted context says whose side you're ` +
+      "writing for (the buyer or the shop owner) and gives the real order facts; " +
+      "the conversation so far is inside <data>. Write 3 different replies that " +
+      "person could send next, each a natural, polite chat message of at most 2 " +
+      "short sentences, in the same language and script the conversation uses " +
+      "(Hindi, Hinglish or English — English if there's nothing to go by). Make " +
+      "them genuinely different (e.g. a confirmation, a question, a friendly " +
+      "alternative). If the data ends with a DRAFT the person has started typing, " +
+      "make the replies finish or improve what they meant. Only use " +
+      "facts from the order details and the conversation — never promise a " +
+      "delivery time, discount, refund, price or stock level that isn't stated " +
+      "there; never ask for passwords, OTPs, card or UPI details. " +
+      'Answer ONLY with JSON: {"replies": [string, string, string]}.',
+    outputSchema: z.object({ replies: z.array(z.string().trim().min(1).max(240)).min(1).max(3) }),
+    outputShapeHint: '{"replies": [string, string, string]}',
+  },
 };
 
 /** Which of the narrow tool list each helper is allowed to call (Step 2.7). */
@@ -184,4 +210,5 @@ export const HELPER_TOOLS: Record<AiHelperName, string[]> = {
   orderAdvice: ["orderStatus", "shopStock", "draftOrderAdvice"],
   stockDraft: ["draftStockList"],
   orderHelp: ["orderStatus"],
+  chatReply: [],
 };
