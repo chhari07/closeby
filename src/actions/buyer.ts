@@ -9,6 +9,7 @@ import { toGeohash } from "@/lib/geo/geohash";
 import type { GeoPoint, Locality, NearbyShopResult, ShopListResult } from "@/types";
 import type { ActionResult } from "./types";
 import { getShopCatalog } from "@/lib/catalog";
+import { matchingTerm, normalizeQuery, queryWords, sanitizeTerms } from "@/lib/search-terms";
 
 export async function listLocalities(): Promise<Locality[]> {
   return listLocalityRows();
@@ -35,16 +36,28 @@ export interface ProductMatchResult extends NearbyShopResult {
 const MAX_SHOPS_TO_SCAN = 15;
 const MAX_PRODUCTS_PER_SHOP = 150;
 
+/** Nearby shops with an in-stock product matching any of `terms` (name or alias). */
+async function shopsWithProducts(origin: GeoPoint, radiusInM: number, terms: string[]): Promise<ProductMatchResult[]> {
+  if (terms.length === 0) return [];
+  const nearby = (await getNearbyShops(origin, radiusInM)).slice(0, MAX_SHOPS_TO_SCAN);
+  const matches = await Promise.all(
+    nearby.map(async (result) => {
+      // Cached catalog (src/lib/catalog.ts): a search costs no database reads once warm.
+      const inStock = (await getShopCatalog(result.shop.id)).filter((p) => p.inStock).slice(0, MAX_PRODUCTS_PER_SHOP);
+      const hit = inStock.find((p) => matchingTerm(p, terms) !== null);
+      return hit ? { ...result, matchedProductName: hit.name } : null;
+    }),
+  );
+  return matches.filter((m): m is ProductMatchResult => m !== null);
+}
+
 /**
- * Step 4.1 (Hindi/Hinglish/English product search), the non-AI base
- * version: a plain, case-insensitive substring match against each
- * product's name and its aliases (Step 1.10 — "chawal", "doodh", etc.).
- * No model call here on purpose — this runs from a live search box, and
- * an AI call per query would be slower and cost real money for something
- * a direct alias match already covers well for a catalog this size.
- * Layering Haiku-based query normalisation on top (the roadmap's fuller
- * version) is a real next step, not this one — it needs its own
- * debounce/cost design so it doesn't fire on every keystroke.
+ * Step 4.1 (Hindi/Hinglish/English product search), the free part: a
+ * case-insensitive match against each product's name and its aliases
+ * (Step 1.10 — "chawal", "doodh", etc.) — first the whole query, then its
+ * meaningful words if it's short ("dal chawal" finds shops with dal or rice). When this
+ * finds nothing the search box asks the AI (searchQuery helper) what the
+ * buyer meant, and calls searchNearbyShopsByTerms with its answer.
  *
  * Bounded to the MAX_SHOPS_TO_SCAN nearest shops — fine for a hyperlocal
  * catalog's current size, not a substitute for a real search index
@@ -55,29 +68,25 @@ export async function searchNearbyShopsByProduct(
   radiusInM: number,
   query: string
 ): Promise<ProductMatchResult[]> {
-  const q = query.trim().toLowerCase();
+  const q = normalizeQuery(query);
   if (q.length < 2) return [];
+  const whole = await shopsWithProducts(origin, radiusInM, [q]);
+  if (whole.length > 0) return whole;
+  // Short queries ("dal chawal", "remote cell") are just product words; a
+  // sentence ("phone charge karne ka wire") would match on its filler
+  // words, so that's left to the AI step instead.
+  const words = queryWords(q);
+  if (words.length === 0 || words.length > 2 || (words.length === 1 && words[0] === q)) return [];
+  return shopsWithProducts(origin, radiusInM, words);
+}
 
-  const nearby = (await getNearbyShops(origin, radiusInM)).slice(0, MAX_SHOPS_TO_SCAN);
-
-  const matches = await Promise.all(
-    nearby.map(async (result) => {
-      // Cached catalog (src/lib/catalog.ts): a search costs no database reads once warm.
-      const inStock = (await getShopCatalog(result.shop.id)).filter((p) => p.inStock).slice(0, MAX_PRODUCTS_PER_SHOP);
-
-      const hit = inStock.find((p) => {
-        const nameHit = typeof p.name === "string" && p.name.toLowerCase().includes(q);
-        const aliasHit =
-          Array.isArray(p.aliases) &&
-          p.aliases.some((a: unknown) => typeof a === "string" && a.toLowerCase().includes(q));
-        return nameHit || aliasHit;
-      });
-      if (!hit) return null;
-      return { ...result, matchedProductName: hit.name };
-    })
-  );
-
-  return matches.filter((m): m is ProductMatchResult => m !== null);
+/** Search with product terms the AI worked out from the buyer's text (re-cleaned here). */
+export async function searchNearbyShopsByTerms(
+  origin: GeoPoint,
+  radiusInM: number,
+  terms: string[],
+): Promise<ProductMatchResult[]> {
+  return shopsWithProducts(origin, radiusInM, sanitizeTerms(terms));
 }
 
 export async function saveMyLocation(

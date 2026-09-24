@@ -1,8 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
-import { findNearbyShops, searchNearbyShopsByProduct, type ProductMatchResult } from "@/actions/buyer";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Search, Sparkles } from "lucide-react";
+import {
+  findNearbyShops,
+  searchNearbyShopsByProduct,
+  searchNearbyShopsByTerms,
+  type ProductMatchResult,
+} from "@/actions/buyer";
 import { useBuyerLocation, type InitialLocation } from "@/lib/hooks/use-buyer-location";
 import { BackButton } from "./back-button";
 import { LocationChip } from "./location-chip";
@@ -16,6 +21,14 @@ import { ANY_DISTANCE } from "@/lib/geo/radius";
 /** Debounce before firing the product-alias search — a search box that
  *  hits the server on every keystroke isn't the goal here. */
 const SEARCH_DEBOUNCE_MS = 400;
+/** Extra pause before asking the AI — only once the buyer has stopped typing. */
+const AI_DEBOUNCE_MS = 700;
+
+type AiSearch =
+  | { state: "idle" }
+  | { state: "thinking" }
+  | { state: "done"; terms: string[] }
+  | { state: "unavailable" };
 
 export function SearchExplorer({
   initialLocalities,
@@ -30,6 +43,9 @@ export function SearchExplorer({
   const [all, setAll] = useState<ShopListResult[]>([]);
   const [query, setQuery] = useState("");
   const [productMatches, setProductMatches] = useState<ProductMatchResult[]>([]);
+  const [ai, setAi] = useState<AiSearch>({ state: "idle" });
+  /** Ignore answers to queries the buyer has since changed. */
+  const latestQuery = useRef("");
 
   const canList = (!!lat && !!lng) || radiusM === ANY_DISTANCE;
 
@@ -45,15 +61,62 @@ export function SearchExplorer({
   // above is instant (already-loaded shops filtered client-side); a
   // product/alias match needs a bounded server round trip, so it's
   // debounced and kept separate rather than blocking the local filter.
+  //
+  // Step 4.1, AI part: only when the plain search (whole query, then its
+  // words) finds nothing, and no shop name matches either, the AI is asked
+  // what the buyer meant ("kuch thanda peene ko" -> cold drink, juice…);
+  // its answer is cached server-side, so a repeated query costs nothing.
   useEffect(() => {
+    latestQuery.current = query;
+    setAi({ state: "idle" });
     if (!lat || !lng || query.trim().length < 2) {
       setProductMatches([]);
       return;
     }
-    const timer = setTimeout(() => {
-      searchNearbyShopsByProduct({ lat, lng }, radiusM, query).then(setProductMatches);
+    const origin = { lat, lng };
+    const current = query;
+    const stale = () => latestQuery.current !== current;
+    let aiTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const timer = setTimeout(async () => {
+      const plain = await searchNearbyShopsByProduct(origin, radiusM, current).catch(() => []);
+      if (stale()) return;
+      setProductMatches(plain);
+      const needle = current.trim().toLowerCase();
+      const nameHit = all.some((r) => r.shop.name.toLowerCase().includes(needle));
+      if (plain.length > 0 || nameHit || needle.length < 3) return;
+
+      aiTimer = setTimeout(async () => {
+        if (stale()) return;
+        setAi({ state: "thinking" });
+        try {
+          const res = await fetch("/api/ai/searchQuery", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: current }),
+          });
+          const body: { data?: { terms: string[] } } = await res.json().catch(() => ({}));
+          if (stale()) return;
+          if (!res.ok || !body.data) {
+            setAi({ state: "unavailable" });
+            return;
+          }
+          const terms = body.data.terms;
+          const matches = terms.length ? await searchNearbyShopsByTerms(origin, radiusM, terms) : [];
+          if (stale()) return;
+          setProductMatches(matches);
+          setAi({ state: "done", terms });
+        } catch {
+          if (!stale()) setAi({ state: "unavailable" });
+        }
+      }, AI_DEBOUNCE_MS);
     }, SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (aiTimer) clearTimeout(aiTimer);
+    };
+    // `all` is read for the name check only; re-running on it would re-search.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lat, lng, radiusM, query]);
 
   const q = query.trim().toLowerCase();
@@ -88,12 +151,28 @@ export function SearchExplorer({
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             autoFocus
-            placeholder="Search shops by name or type"
+            placeholder="Search shops or products — Hindi, Hinglish or English"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="h-11 pl-9"
           />
         </div>
+
+        {ai.state === "thinking" && (
+          <p className="text-muted-foreground mb-3 flex items-center gap-2 text-sm">
+            <Loader2 className="size-4 animate-spin" /> Understanding your search…
+          </p>
+        )}
+        {ai.state === "done" && ai.terms.length > 0 && (
+          <p className="bg-primary/5 text-foreground mb-3 flex flex-wrap items-center gap-1.5 rounded-lg px-3 py-2 text-sm">
+            <Sparkles className="text-primary size-4" /> Showing results for:
+            {ai.terms.map((t) => (
+              <span key={t} className="bg-background rounded-full border px-2 py-0.5 text-xs">
+                {t}
+              </span>
+            ))}
+          </p>
+        )}
 
         {!canList && (
           <p className="text-muted-foreground py-16 text-center text-sm">
@@ -105,7 +184,13 @@ export function SearchExplorer({
 
         {canList && !loading && filtered.length === 0 && (
           <p className="text-muted-foreground py-16 text-center text-sm">
-            {q ? `No shops matching "${query}"${radiusM === 0 ? "" : ` within ${radiusM / 1000} km`}.` : "No open shops nearby right now."}
+            {ai.state === "thinking"
+              ? ""
+              : q
+                ? `No shops matching "${query}"${radiusM === 0 ? "" : ` within ${radiusM / 1000} km`}.${
+                    ai.state === "done" && ai.terms.length === 0 ? " That doesn't look like something shops sell — try a product name." : ""
+                  }`
+                : "No open shops nearby right now."}
           </p>
         )}
 

@@ -21,6 +21,7 @@ import { getShopCatalog } from "@/lib/catalog";
 import { getConversation } from "@/actions/messages";
 import { buildChatReplyContext } from "@/lib/ai/chat-context";
 import { describeCandidates, getIdeasStatus, loadIdeaCandidates, markIdeasGenerated } from "@/lib/shop-ideas";
+import { normalizeQuery, sanitizeTerms } from "@/lib/search-terms";
 
 export const dynamic = "force-dynamic";
 
@@ -178,6 +179,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
       });
     }
     ideasInput = describeCandidates(candidates);
+  }
+
+  // Search understanding: the same search text is only ever sent to the model
+  // once — later searches get the cached terms instantly and for free.
+  const searchKey = helperDef.name === "searchQuery" ? normalizeQuery(parsedBody.data.input) : null;
+  if (searchKey !== null) {
+    if (searchKey.length < 2) return NextResponse.json({ error: "Type a little more" }, { status: 400 });
+    const [hit] = await db()`
+      update search_query_cache set hits = hits + 1 where query = ${searchKey} returning terms
+    `;
+    if (hit) return NextResponse.json({ ok: true, data: { terms: hit.terms as string[], cached: true } });
   }
 
   // 4. daily spend limit --------------------------------------------------------
@@ -404,6 +416,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ hel
   }
 
   if (helperDef.name === "shopIdeas" && shopId && ideasFingerprint) await markIdeasGenerated(shopId, ideasFingerprint);
+
+  if (searchKey !== null) {
+    const terms = sanitizeTerms((output as { terms: unknown }).terms);
+    output = { terms, cached: false };
+    await db()`
+      insert into search_query_cache (query, terms, created_at) values (${searchKey}, ${terms}, ${Date.now()})
+      on conflict (query) do nothing
+    `;
+  }
 
   return NextResponse.json({ ok: true, data: output });
 }
