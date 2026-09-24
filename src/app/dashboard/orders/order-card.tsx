@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Phone, Loader2, Receipt, MessageSquare } from "lucide-react";
+import { Phone, Loader2, Receipt, MessageSquare, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { BillDialog } from "@/components/orders/order-bill";
@@ -10,6 +10,8 @@ import { ReasonDialog } from "@/components/orders/reason-dialog";
 import { transitionOrder } from "@/actions/orders";
 import { formatPaise } from "@/lib/money";
 import { OrderAiSuggestion } from "./order-ai-suggestion";
+import { OrderRiskFlags } from "./order-risk-flags";
+import { wasAutoAccepted } from "@/lib/orders/auto-accept";
 import { ChatDialog } from "@/components/chat/chat-dialog";
 import type { OrderDoc, OrderStatus } from "@/types";
 
@@ -80,6 +82,13 @@ export function OrderCard({
           </p>
         )}
       </div>
+
+      {wasAutoAccepted(order) && (
+        <p className="text-primary-ink mt-2 flex items-center gap-1 text-xs font-medium">
+          <Zap className="size-3.5" /> Auto-accepted by your rules
+        </p>
+      )}
+      <OrderRiskFlags order={order} />
 
       <p className="text-muted-foreground mt-2 text-xs">
         {order.deliveryAddress.line1}

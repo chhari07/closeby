@@ -12,6 +12,7 @@ import {
 import { demoRefundId } from "./demo";
 import type { OrderDoc } from "@/types";
 import { alertBuyerRefund, alertShopNewOrder, queueAlert } from "@/lib/email/alerts";
+import { onOrderReachedShop } from "@/lib/orders/reached-shop";
 
 /**
  * Online payment lifecycle for an order, shared by the checkout server
@@ -92,8 +93,12 @@ export async function recordPayment(
     await refundOrder(orderId);
     return "refunded";
   }
-  // The order only now reaches the shop — email the owner if they're away.
-  if (outcome === "paid") await queueAlert((base) => alertShopNewOrder(orderId, base));
+  // The order only now reaches the shop: warnings + auto-accept (Steps 5.1/5.2),
+  // then email the owner if they're away.
+  if (outcome === "paid") {
+    await onOrderReachedShop(orderId);
+    await queueAlert((base) => alertShopNewOrder(orderId, base));
+  }
   return outcome;
 }
 

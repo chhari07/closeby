@@ -122,10 +122,20 @@ export async function alertShopNewOrder(orderId: string, base: string): Promise<
   if (!order || !shop) return;
   const to = await awayRecipient(shop.ownerId);
   if (!to || !(await claim(`new-order:${orderId}`))) return;
+  const autoAccepted = order.status === "ACCEPTED" && order.timeline.some((t) => t.status === "ACCEPTED" && t.auto);
   const { html, text } = renderAlert({
     name: to.name,
     heading: `New order from ${order.buyerName || "a buyer"}`,
-    lines: [`Order ${orderRef(order)} · ${itemsLine(order)}`, ...order.items.slice(0, 6).map((i) => `• ${i.name} (${i.unit}) × ${i.qty}`), "Accept or reject it soon — the buyer is waiting."],
+    lines: [
+      `Order ${orderRef(order)} · ${itemsLine(order)}`,
+      ...order.items.slice(0, 6).map((i) => `• ${i.name} (${i.unit}) × ${i.qty}`),
+      ...(order.riskFlags ?? []).map((f) => `⚠ ${f.text}`),
+      autoAccepted
+        ? "Accepted automatically by your auto-accept rules — start preparing it."
+        : order.riskFlags?.length
+          ? "Check the warnings above before you accept it."
+          : "Accept or reject it soon — the buyer is waiting.",
+    ],
     button: { label: "Open orders", url: `${base}/dashboard/orders` },
   });
   await sendEmail({ to: to.email, subject: `🛒 New order ${orderRef(order)} — ${itemsLine(order)}`, html, text });

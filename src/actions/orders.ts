@@ -25,6 +25,7 @@ import {
 } from "@/lib/payments/orders";
 import type { PaymentProvider } from "@/types";
 import { alertBuyerOrderUpdate, alertShopNewOrder, queueAlert } from "@/lib/email/alerts";
+import { onOrderReachedShop } from "@/lib/orders/reached-shop";
 
 export interface PlaceOrderRejection {
   reason: string;
@@ -268,6 +269,8 @@ export async function placeOrder(
 
   invalidateCatalog(shopId); // stock was reserved
   if (!online) {
+    // Step 5.2 warnings, then Step 5.1 auto-accept (online orders: once paid).
+    await onOrderReachedShop(orderId);
     // Email the owner if they're not on the site (online orders: once paid).
     await queueAlert((base) => alertShopNewOrder(orderId, base));
     return { ok: true, data: { orderId } };

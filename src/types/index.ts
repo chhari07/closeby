@@ -104,8 +104,27 @@ export interface ShopDoc {
    *  working (treat missing as 0). */
   orderCount?: number;
   pendingOrderCount?: number;
+  /** Step 5.1: the owner's auto-accept rules; missing = never set up (off). */
+  autoAccept?: AutoAcceptRules;
   createdAt: number;
   updatedAt: number;
+}
+
+/** Step 5.1 — which new orders the shop accepts without the owner tapping Accept. */
+export interface AutoAcceptRules {
+  enabled: boolean;
+  /** Orders above this total (paise) always wait for the owner. */
+  maxOrderValue: number;
+  /** Only orders paid this way are auto-accepted. */
+  paymentMethods: PaymentMethod[];
+}
+
+/** Step 5.2 — one warning about an order, for the owner only. */
+export interface RiskFlag {
+  code: string;
+  /** "high" = look closely before accepting. */
+  level: "warn" | "high";
+  text: string;
 }
 
 export interface ProductDoc {
@@ -148,6 +167,8 @@ export interface OrderTimelineEntry {
   at: number;
   by: "buyer" | "shop";
   reason?: string;
+  /** Step 5.1: set when the shop's auto-accept rules made this move, not the owner. */
+  auto?: boolean;
 }
 
 export interface DeliveryAddress {
@@ -187,6 +208,10 @@ export interface OrderDoc {
   /** When each side last opened this order's conversation (epoch ms). */
   buyerReadAt?: number;
   shopReadAt?: number;
+  /** Step 5.2: warnings for the owner (never shown to the buyer); [] when none. */
+  riskFlags?: RiskFlag[];
+  /** When the owner marked the warnings as checked. */
+  riskReviewedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

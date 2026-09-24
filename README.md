@@ -103,6 +103,15 @@ Security > 2-Step Verification > App passwords) to `.env.local`:
 emails are printed in the dev-server terminal instead. `APP_URL` (optional)
 sets the site address used in email links.
 
+### 4d. Operator dashboard (optional)
+
+`/admin` shows AI cost per order, AI error and order reject rates, the
+slowest AI answers and shops, order warnings, and alerts when AI spend
+jumps (Step 5.6). Put your Clerk user id(s) in `ADMIN_USER_IDS`
+(comma-separated; Clerk dashboard > Users) — for everyone else the page is a
+404. `ADMIN_EMAILS` (comma-separated) get an email when today's AI spend is
+2× a normal day.
+
 ### 5. Create the tables and seed reference data
 
 ```bash
