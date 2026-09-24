@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Phone, Loader2, Receipt } from "lucide-react";
+import { Phone, Loader2, Receipt, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { BillDialog } from "@/components/orders/order-bill";
@@ -10,15 +10,20 @@ import { ReasonDialog } from "@/components/orders/reason-dialog";
 import { transitionOrder } from "@/actions/orders";
 import { formatPaise } from "@/lib/money";
 import { OrderAiSuggestion } from "./order-ai-suggestion";
+import { ChatDialog } from "@/components/chat/chat-dialog";
 import type { OrderDoc, OrderStatus } from "@/types";
 
 export function OrderCard({
   order,
   onChanged,
+  unreadChat = 0,
 }: {
   order: OrderDoc;
   onChanged?: () => void;
+  /** Unread messages from the buyer in this order's chat. */
+  unreadChat?: number;
 }) {
+  const [chatOpen, setChatOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -94,6 +99,15 @@ export function OrderCard({
           <Receipt className="size-3.5" /> Bill
         </Button>
 
+        <Button size="sm" variant="outline" className="relative" onClick={() => setChatOpen(true)}>
+          <MessageSquare className="size-3.5" /> Chat
+          {unreadChat > 0 && (
+            <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]">
+              {unreadChat}
+            </span>
+          )}
+        </Button>
+
         {order.status === "PLACED" && (
           <>
             <Button
@@ -157,6 +171,12 @@ export function OrderCard({
         )}
       </div>
 
+      <ChatDialog
+        orderId={order.id}
+        title={`Chat with ${order.buyerName || "buyer"}`}
+        open={chatOpen}
+        onOpenChange={setChatOpen}
+      />
       <BillDialog order={order} open={billOpen} onOpenChange={setBillOpen} />
       <ReasonDialog
         open={rejectOpen}

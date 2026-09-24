@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { getUnreadMessageCount } from "@/actions/messages";
-import { useOrderSignals } from "@/lib/hooks/use-order-signals";
+import { useChatSignals, useOrderSignals } from "@/lib/hooks/use-order-signals";
 
 /** Fired by the Messages page once it has marked everything read. */
 export const MESSAGES_READ_EVENT = "closeby:messages-read";
@@ -27,6 +27,7 @@ export function useUnreadMessages(enabled: boolean): number {
   }, [refresh]);
 
   useOrderSignals(enabled && userId ? `buyer-orders:${userId}` : null, refresh);
+  useChatSignals(enabled && userId ? `buyer-orders:${userId}` : null, refresh);
 
   return enabled ? count : 0;
 }

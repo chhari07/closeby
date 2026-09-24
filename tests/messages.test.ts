@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMessages, isUnread, messagesForOrder } from "../src/lib/messages";
+import { buildConversation, buildMessages, buildThread, isUnread, isUnreadFor, messagesForOrder } from "../src/lib/messages";
 import type { OrderDoc } from "../src/types";
 
 const base: OrderDoc = {
@@ -91,5 +91,50 @@ describe("buyer messages", () => {
     expect(msgs.map((m) => m.at)).toEqual([3000, 1000, 500]);
     expect(msgs.filter((m) => isUnread(m, 0)).map((m) => m.kind)).toEqual(["ACCEPTED"]);
     expect(msgs.filter((m) => isUnread(m, 3000))).toEqual([]);
+  });
+});
+
+describe("order chat threads", () => {
+  const order: OrderDoc = {
+    ...base,
+    status: "ACCEPTED",
+    timeline: [
+      { status: "PLACED", at: 1000, by: "buyer" },
+      { status: "ACCEPTED", at: 3000, by: "shop" },
+    ],
+  };
+  const chat = (id: string, sender: "buyer" | "shop", at: number, body = "hi") => ({
+    id,
+    orderId: order.id,
+    sender,
+    senderId: sender,
+    body,
+    createdAt: at,
+  });
+
+  it("interleaves alerts and chat in time order", () => {
+    const thread = buildThread(order, [chat("c1", "buyer", 2000, "Is rice in stock?"), chat("c2", "shop", 4000, "Yes!")]);
+    expect(thread.map((i) => (i.type === "chat" ? i.chat.body : i.alert.kind))).toEqual([
+      "PLACED",
+      "Is rice in stock?",
+      "ACCEPTED",
+      "Yes!",
+    ]);
+  });
+
+  it("counts unread per side: the buyer gets shop replies and alerts, the shop only buyer messages", () => {
+    const chats = [chat("c1", "buyer", 2000), chat("c2", "shop", 4000), chat("c3", "buyer", 5000)];
+    const forBuyer = buildConversation({ ...order, buyerReadAt: 1500 }, chats, "buyer");
+    expect(forBuyer.unread).toBe(2); // ACCEPTED alert + shop reply; own messages never count
+    const forShop = buildConversation({ ...order, shopReadAt: 4500 }, chats, "shop");
+    expect(forShop.unread).toBe(1); // only the buyer's message after the shop last read
+    expect(forShop.lastText).toBe("hi");
+    expect(forShop.lastFrom).toBe("buyer");
+  });
+
+  it("the buyer's own messages are never unread for the buyer", () => {
+    const [, mine] = buildThread(order, [chat("c1", "buyer", 2000)]);
+    expect(isUnreadFor(mine!, "buyer", 0)).toBe(false);
+    expect(isUnreadFor(mine!, "shop", 0)).toBe(true);
   });
 });

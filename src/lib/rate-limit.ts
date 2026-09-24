@@ -28,6 +28,8 @@ export const RATE_LIMITS = {
   // Step 2.2's AI entrance — one bucket for every helper, per user. Model
   // calls cost real money, so this is tighter than the plain-write buckets.
   aiHelper: { limit: 15, windowMs: 60_000 },
+  // Buyer <-> shop order chat.
+  chatMessage: { limit: 30, windowMs: 60_000 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type RateLimitBucket = keyof typeof RATE_LIMITS;

@@ -5,7 +5,8 @@ import { useUser } from "@clerk/nextjs";
 import { OrderBill } from "@/components/orders/order-bill";
 import { useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { toast } from "sonner";
-import { Check, X, Loader2, Phone, CreditCard } from "lucide-react";
+import { Check, X, Loader2, Phone, CreditCard, MessageSquare } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -172,6 +173,14 @@ export function OrderTimeline({
       )}
 
       <OrderBill order={order} showBuyer={!isBuyer} />
+
+      {isBuyer && order.paymentStatus !== "pending" && order.paymentStatus !== "expired" && (
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href={`/messages/${orderId}`}>
+            <MessageSquare className="size-4" /> Message {order.shopName}
+          </Link>
+        </Button>
+      )}
 
       {isBuyer && <OrderHelpChat orderId={orderId} />}
 

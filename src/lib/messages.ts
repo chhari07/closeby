@@ -1,5 +1,5 @@
 import { formatPaise } from "@/lib/money";
-import type { OrderDoc, OrderStatus } from "@/types";
+import type { OrderChatMessage, OrderDoc, OrderStatus } from "@/types";
 
 /**
  * The buyer's Messages tab. Every alert a buyer gets (order status changes,
@@ -121,4 +121,55 @@ export function buildMessages(orders: OrderDoc[]): BuyerMessage[] {
 
 export function isUnread(message: BuyerMessage, readAt: number): boolean {
   return !message.fromBuyer && message.at > readAt;
+}
+
+// --- Chat: each order is one conversation between its buyer and the shop,
+// with the order's alerts shown in line as status cards. ---
+
+export type Viewer = "buyer" | "shop";
+
+export type ThreadItem =
+  | { type: "alert"; id: string; at: number; alert: BuyerMessage }
+  | { type: "chat"; id: string; at: number; chat: OrderChatMessage };
+
+/** An order's alerts and chat messages, oldest first (chat order). */
+export function buildThread(order: OrderDoc, chats: OrderChatMessage[]): ThreadItem[] {
+  const alerts: ThreadItem[] = messagesForOrder(order).map((alert) => ({ type: "alert", id: alert.id, at: alert.at, alert }));
+  const messages: ThreadItem[] = chats.map((chat) => ({ type: "chat", id: chat.id, at: chat.createdAt, chat }));
+  return [...alerts, ...messages].sort((a, b) => a.at - b.at || (a.type === "alert" ? -1 : 1));
+}
+
+/** Whether a thread item is news to this viewer since they last read the conversation. */
+export function isUnreadFor(item: ThreadItem, viewer: Viewer, readAt: number): boolean {
+  if (item.at <= readAt) return false;
+  if (item.type === "chat") return item.chat.sender !== viewer;
+  // Order alerts are the buyer's notifications; the shop caused them.
+  return viewer === "buyer" && !item.alert.fromBuyer;
+}
+
+export interface Conversation {
+  orderId: string;
+  shopName: string;
+  buyerName: string;
+  status: OrderStatus;
+  lastText: string;
+  lastFrom: "buyer" | "shop" | "update";
+  lastAt: number;
+  unread: number;
+}
+
+export function buildConversation(order: OrderDoc, chats: OrderChatMessage[], viewer: Viewer): Conversation {
+  const thread = buildThread(order, chats);
+  const last = thread.at(-1);
+  const readAt = (viewer === "buyer" ? order.buyerReadAt : order.shopReadAt) ?? 0;
+  return {
+    orderId: order.id,
+    shopName: order.shopName,
+    buyerName: order.buyerName,
+    status: order.status,
+    lastText: !last ? "" : last.type === "chat" ? last.chat.body : last.alert.title,
+    lastFrom: !last ? "update" : last.type === "chat" ? last.chat.sender : "update",
+    lastAt: last?.at ?? order.createdAt,
+    unread: thread.filter((item) => isUnreadFor(item, viewer, readAt)).length,
+  };
 }

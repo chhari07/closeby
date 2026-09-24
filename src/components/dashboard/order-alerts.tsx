@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getOrder } from "@/actions/orders";
-import { useOrderSignals } from "@/lib/hooks/use-order-signals";
+import { useChatSignals, useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { playNewOrderPing } from "@/lib/audio/ping";
 import { ensureNotificationPermission, showBrowserNotification } from "@/lib/notify/browser-notify";
 import { formatPaise } from "@/lib/money";
@@ -52,6 +52,23 @@ export function OrderAlerts({ shopId }: { shopId: string }) {
     });
     showBrowserNotification("New order — CloseBy", body, {
       tag: `order-${order.id}`,
+      onClick: () => router.push("/dashboard/orders"),
+    });
+  });
+
+  // A buyer wrote in an order's chat.
+  useChatSignals(`shop-orders:${shopId}`, async (signal) => {
+    if (signal.sender !== "buyer") return;
+    const order = await getOrder(signal.orderId);
+    if (!order || order.shopId !== shopId) return;
+    playNewOrderPing();
+    const who = order.buyerName || "A buyer";
+    toast.info(`New message from ${who}`, {
+      description: `Order #${order.id.slice(0, 8).toUpperCase()} — open Chat on the order to reply.`,
+      action: { label: "View", onClick: () => router.push("/dashboard/orders") },
+    });
+    showBrowserNotification(`Message from ${who} — CloseBy`, `Order #${order.id.slice(0, 8).toUpperCase()}`, {
+      tag: `chat-${order.id}`,
       onClick: () => router.push("/dashboard/orders"),
     });
   });

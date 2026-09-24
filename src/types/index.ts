@@ -182,8 +182,21 @@ export interface OrderDoc {
   /** How it was paid, for the bill: "UPI", "Card •••• 1111", ... */
   paymentDetail?: string;
   paidAt?: number;
+  /** When each side last opened this order's conversation (epoch ms). */
+  buyerReadAt?: number;
+  shopReadAt?: number;
   createdAt: number;
   updatedAt: number;
+}
+
+/** One chat message between an order's buyer and the shop. */
+export interface OrderChatMessage {
+  id: string;
+  orderId: string;
+  sender: "buyer" | "shop";
+  senderId: string;
+  body: string;
+  createdAt: number;
 }
 
 export interface NearbyShopResult {

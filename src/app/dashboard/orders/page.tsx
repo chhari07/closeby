@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { listShopOrders } from "@/actions/orders";
-import { useOrderSignals } from "@/lib/hooks/use-order-signals";
+import { listShopChatUnread } from "@/actions/messages";
+import { useChatSignals, useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { useShop } from "@/components/dashboard/shop-context";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { OrderCard } from "./order-card";
+import { MESSAGES_READ_EVENT } from "@/lib/hooks/use-unread-messages";
 import { OrdersSkeleton } from "./orders-skeleton";
 import type { OrderDoc } from "@/types";
 
@@ -42,6 +44,20 @@ export default function DashboardOrdersPage() {
   // new-order sound/toast/notification live in <OrderAlerts>, mounted once
   // for the whole dashboard, not here.
   useOrderSignals(`shop-orders:${shop.id}`, () => void load());
+
+  // Unread buyer messages per order, for the Chat badges on each card.
+  const [chatUnread, setChatUnread] = useState<Record<string, number>>({});
+  const loadChatUnread = useCallback(() => {
+    void listShopChatUnread(shop.id)
+      .then(setChatUnread)
+      .catch(() => {});
+  }, [shop.id]);
+  useEffect(() => {
+    loadChatUnread();
+    window.addEventListener(MESSAGES_READ_EVENT, loadChatUnread);
+    return () => window.removeEventListener(MESSAGES_READ_EVENT, loadChatUnread);
+  }, [loadChatUnread]);
+  useChatSignals(`shop-orders:${shop.id}`, loadChatUnread);
 
   if (!orders && loadError) {
     return (
@@ -103,7 +119,7 @@ export default function DashboardOrdersPage() {
             />
           ) : (
             newOrders.map((o) => (
-              <OrderCard key={o.id} order={o} />
+              <OrderCard key={o.id} order={o} unreadChat={chatUnread[o.id] ?? 0} />
             ))
           )}
         </TabsContent>
@@ -112,7 +128,7 @@ export default function DashboardOrdersPage() {
             <EmptyTab label="No orders in progress." />
           ) : (
             activeOrders.map((o) => (
-              <OrderCard key={o.id} order={o} />
+              <OrderCard key={o.id} order={o} unreadChat={chatUnread[o.id] ?? 0} />
             ))
           )}
         </TabsContent>
@@ -121,7 +137,7 @@ export default function DashboardOrdersPage() {
             <EmptyTab label="No completed orders yet." />
           ) : (
             completedOrders.map((o) => (
-              <OrderCard key={o.id} order={o} />
+              <OrderCard key={o.id} order={o} unreadChat={chatUnread[o.id] ?? 0} />
             ))
           )}
         </TabsContent>
@@ -130,7 +146,7 @@ export default function DashboardOrdersPage() {
             <EmptyTab label="No rejected or cancelled orders." />
           ) : (
             closedOrders.map((o) => (
-              <OrderCard key={o.id} order={o} />
+              <OrderCard key={o.id} order={o} unreadChat={chatUnread[o.id] ?? 0} />
             ))
           )}
         </TabsContent>

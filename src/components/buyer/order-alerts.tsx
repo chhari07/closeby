@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { toast } from "sonner";
 import { getOrder } from "@/actions/orders";
-import { useOrderSignals } from "@/lib/hooks/use-order-signals";
+import { useChatSignals, useOrderSignals } from "@/lib/hooks/use-order-signals";
 import { playOrderUpdatePing } from "@/lib/audio/ping";
 import { ensureNotificationPermission, showBrowserNotification } from "@/lib/notify/browser-notify";
 import type { OrderStatus } from "@/types";
@@ -26,6 +26,7 @@ const STATUS_MESSAGE: Partial<Record<OrderStatus, string>> = {
  */
 export function BuyerOrderAlerts() {
   const router = useRouter();
+  const pathname = usePathname();
   const { userId } = useAuth();
   const alerted = useRef<Set<string>>(new Set());
 
@@ -56,6 +57,22 @@ export function BuyerOrderAlerts() {
     showBrowserNotification("Order update — CloseBy", body, {
       tag: `order-${order.id}`,
       onClick: () => router.push(`/orders/${order.id}`),
+    });
+  });
+
+  // The shop replied in an order's chat (not shown while that chat is open).
+  useChatSignals(userId ? `buyer-orders:${userId}` : null, async (signal) => {
+    if (signal.sender !== "shop" || pathname === `/messages/${signal.orderId}`) return;
+    const order = await getOrder(signal.orderId);
+    if (!order || order.buyerId !== userId) return;
+    playOrderUpdatePing();
+    toast.info(`New message from ${order.shopName}`, {
+      description: "Tap to read and reply.",
+      action: { label: "Open", onClick: () => router.push(`/messages/${order.id}`) },
+    });
+    showBrowserNotification(`Message from ${order.shopName} — CloseBy`, "Tap to read and reply.", {
+      tag: `chat-${order.id}`,
+      onClick: () => router.push(`/messages/${order.id}`),
     });
   });
 
