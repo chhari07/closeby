@@ -1,8 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
+import { layoutUserId } from "@/lib/auth/layout-user";
 import { Logo } from "@/components/logo";
 
 export async function Footer() {
-  const { userId } = await auth();
+  const userId = await layoutUserId();
   // Signed-in app screens are mobile-first with their own bottom tab bar —
   // a marketing-style footer would just fight it for space. Only the
   // logged-out landing/sign-in/sign-up pages get one.

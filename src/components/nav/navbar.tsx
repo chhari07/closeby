@@ -1,10 +1,10 @@
-import { auth } from "@clerk/nextjs/server";
+import { layoutUserId } from "@/lib/auth/layout-user";
 import { getMe } from "@/actions/users";
 import { NavbarClient } from "./navbar-client";
 import { RoleTheme } from "@/components/role-theme";
 
 export async function Navbar() {
-  const { userId } = await auth();
+  const userId = await layoutUserId();
   const me = userId ? await getMe() : null;
 
   return (
