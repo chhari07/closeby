@@ -28,3 +28,5 @@ coverage/
 
 # Local seed / AI-eval fixtures read by scripts/ (not part of the app)
 test-shop/
+.vercel
+.env*
