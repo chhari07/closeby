@@ -1,3 +1,0 @@
-  style={{
-          backgroundImage: "url('https://i.pinimg.com/736x/d1/5b/93/d15b931ff4c9eb158841710389802d1a.jpg')",
-        }}

@@ -25,3 +25,6 @@ coverage/
 
 # npm run seed:sales undo info (local test data)
 /.seed-sales-undo.json
+
+# Local seed / AI-eval fixtures read by scripts/ (not part of the app)
+test-shop/
