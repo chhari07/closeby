@@ -1,12 +1,33 @@
 # CloseBy
 
+**Your street's shops, online.** [Live demo](https://closeby-ashy.vercel.app) ·
+[Case study](https://amankumarchhari.vercel.app/work/closeby) (decisions,
+failure handling, JMeter results)
+
 CloseBy connects buyers to the real, physical shops already near them —
 kirana stores, pharmacies, stationers, bakeries, electronics shops and more
 — instead of a warehouse styled to look local. Buyers browse and order from
 shops within a chosen radius; shop owners manage inventory and orders from a
-dashboard. See `docs/closeby-ai-roadmap-steps.txt` for where this is headed
-next: AI helpers that draft (never write) — a human always confirms before
-anything changes.
+dashboard. Owners can import stock from a shelf photo or a voice list: the
+AI drafts, and nothing is saved until the owner approves it.
+
+## AI layer
+
+- **One gateway for every model call** (`src/app/api/ai/[helper]/route.ts`,
+  `src/lib/ai/`): auth, rate limit, kill switch, daily spend cap, input
+  cleaning, a tool loop and cost logging, so a new AI feature can't skip them.
+- **AI drafts, people decide.** Stock imports (photo or voice), restock ideas
+  and chat replies come back as Zod-validated drafts; an existing server
+  action makes the change only after the owner approves. Malformed output
+  fails closed.
+- **Claude by default** (Haiku 4.5 for text, Sonnet for photos; model ids and
+  prices in `src/lib/ai/models.ts`), with an OpenAI path behind
+  `AI_PROVIDER=openai`.
+- **Measured under load** with Apache JMeter: 50 buyers racing for the last 5
+  units made exactly 5 orders (0 oversells in 4/4 runs), 800/800 checkout
+  orders OK, and the spend cap blocked 20/20 over-cap calls before any model
+  call. Full tables in the
+  [case study](https://amankumarchhari.vercel.app/work/closeby).
 
 ## Stack
 
@@ -189,8 +210,12 @@ the browser re-reads the order through a server action that checks access.
 
 ## Roadmap
 
-`docs/closeby-ai-roadmap-steps.txt` is the working plan for adding AI
-helpers (owner: photo/voice → draft stock list, order accept/reject
-suggestions; buyer: natural-language search, sentence → cart). Every helper
-follows the same rule: **the AI drafts, a human confirms, and an existing
-server action makes the change** — never the model itself.
+`docs/closeby-ai-roadmap-steps.txt` is the working plan for the AI helpers.
+Every helper follows the same rule: **the AI drafts, a human confirms, and an
+existing server action makes the change** — never the model itself. Next up:
+a larger eval set of hard cases, a short demo video and stock substitution
+suggestions.
+
+---
+
+Built solo by [Aman Kumar Chhari](https://amankumarchhari.vercel.app) (SOLOX).
