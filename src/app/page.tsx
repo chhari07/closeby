@@ -45,7 +45,7 @@ export default async function Home() {
 
   return (
     <main>
-      {/* HERO — dark forest, big display type, illustration underneath */}
+      {/* HERO — black, big display type, neighbourhood map underneath */}
       <section className="bg-forest text-cream relative overflow-hidden">
         <div className="mx-auto max-w-5xl px-6 pt-16 text-center sm:pt-24">
           <h1 className="text-[56px] leading-[0.92] sm:text-[88px] lg:text-[112px]">
@@ -79,8 +79,8 @@ export default async function Home() {
 
         <div className="relative mt-10 aspect-[1916/821] min-h-[260px] w-full">
           <Image
-            src="/closeby-hero-rickshaw.svg"
-            alt="Folk-art painted auto-rickshaw carrying groceries, medicine, bread and stationery under a marigold garland"
+            src="/closeby-hero-map.svg"
+            alt="Map of the neighbourhood with nearby kirana, pharmacy, bakery and stationery shops pinned around you, and a walking route to the bakery"
             fill
             priority
             unoptimized

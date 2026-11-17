@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1916 821" width="1916" height="821">
+  <style>
+    .pulse { transform-box: fill-box; transform-origin: center; animation: pulse 2s ease-out infinite; }
+    .route { animation: dash 1.1s linear infinite; }
+    .bob { animation: bob 3.2s ease-in-out infinite; }
+    .bob2 { animation: bob 3.2s ease-in-out -1.1s infinite; }
+    .bob3 { animation: bob 3.2s ease-in-out -2.2s infinite; }
+    @keyframes pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(3.2); opacity: 0; } }
+    @keyframes dash { to { stroke-dashoffset: -28; } }
+    @keyframes bob { 50% { transform: translateY(-8px); } }
+    @media (prefers-reduced-motion: reduce) { .pulse, .route, .bob, .bob2, .bob3 { animation: none; } }
+    text { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  </style>
+  <defs>
+    <radialGradient id="glow" cx="958" cy="470" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#97df67" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#97df67" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fadeTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0a0a0a"/>
+      <stop offset="1" stop-color="#0a0a0a" stop-opacity="0"/>
+    </linearGradient>
+    <!-- shop pin: tip at 0,0 -->
+    <g id="pin">
+      <path d="M0 0 C-6 -14 -24 -24 -24 -44 A24 24 0 1 1 24 -44 C24 -24 6 -14 0 0Z" fill="#108652" stroke="#0a0a0a" stroke-width="3"/>
+      <circle cx="0" cy="-44" r="9" fill="#ffffff"/>
+    </g>
+    <g id="pinHot">
+      <path d="M0 0 C-7 -16 -28 -28 -28 -52 A28 28 0 1 1 28 -52 C28 -28 7 -16 0 0Z" fill="#97df67" stroke="#0a0a0a" stroke-width="3"/>
+      <circle cx="0" cy="-52" r="11" fill="#0a0a0a"/>
+    </g>
+  </defs>
+
+  <!-- ground -->
+  <rect width="1916" height="821" fill="#0f110f"/>
+
+  <!-- parks -->
+  <g fill="#0d3b25">
+    <rect x="590" y="200" width="125" height="95" rx="10"/>
+    <rect x="1130" y="410" width="120" height="95" rx="10"/>
+    <rect x="1660" y="190" width="130" height="80" rx="10"/>
+    <rect x="130" y="420" width="110" height="85" rx="10"/>
+    <rect x="1270" y="650" width="170" height="140" rx="10"/>
+    <circle cx="1200" cy="250" r="44"/>
+  </g>
+  <g fill="#108652" opacity=".55">
+    <circle cx="620" cy="230" r="9"/><circle cx="650" cy="262" r="7"/><circle cx="690" cy="225" r="8"/>
+    <circle cx="1165" cy="440" r="8"/><circle cx="1215" cy="470" r="9"/>
+    <circle cx="1700" cy="225" r="8"/><circle cx="1750" cy="240" r="7"/>
+    <circle cx="1310" cy="700" r="9"/><circle cx="1380" cy="740" r="8"/><circle cx="1405" cy="680" r="7"/>
+  </g>
+
+  <!-- river -->
+  <path d="M-30 125 C300 185 500 55 820 110 S1320 205 1950 90" fill="none" stroke="#0a2a1b" stroke-width="64" stroke-linecap="round"/>
+  <path d="M-30 125 C300 185 500 55 820 110 S1320 205 1950 90" fill="none" stroke="#108652" stroke-opacity=".25" stroke-width="2" stroke-dasharray="4 16"/>
+
+  <!-- lanes -->
+  <g fill="none" stroke="#1d211d" stroke-width="7" stroke-linecap="round">
+    <path d="M-20 190 H1940"/>
+    <path d="M-20 410 C400 400 800 420 1940 405"/>
+    <path d="M-20 515 C500 520 900 505 1940 520"/>
+    <path d="M-20 730 H1940"/>
+    <path d="M120 -20 V840"/><path d="M255 -20 C260 300 245 500 255 840"/>
+    <path d="M580 -20 V840"/><path d="M720 -20 C715 400 730 600 722 840"/>
+    <path d="M1120 -20 C1125 400 1110 600 1120 840"/><path d="M1262 -20 V840"/>
+    <path d="M1650 -20 C1655 300 1640 600 1650 840"/><path d="M1795 -20 V840"/>
+  </g>
+
+  <!-- main roads -->
+  <g fill="none" stroke="#2a2f2a" stroke-width="18" stroke-linecap="round">
+    <path d="M-20 300 C400 280 700 330 1000 312 S1600 272 1940 300"/>
+    <path d="M-20 622 C500 642 900 602 1300 630 S1800 652 1940 612"/>
+    <path d="M420 -20 C440 300 400 500 430 840"/>
+    <path d="M945 -20 C960 250 950 600 975 840"/>
+    <path d="M1480 -20 C1460 300 1510 550 1490 840"/>
+    <path d="M110 840 C500 520 800 300 1250 -20"/>
+  </g>
+  <g fill="none" stroke="#3a403a" stroke-width="1.5" stroke-dasharray="10 14">
+    <path d="M-20 300 C400 280 700 330 1000 312 S1600 272 1940 300"/>
+    <path d="M945 -20 C960 250 950 600 975 840"/>
+  </g>
+
+  <!-- 1 km radius around you -->
+  <circle cx="958" cy="470" r="420" fill="url(#glow)"/>
+  <circle cx="958" cy="470" r="270" fill="none" stroke="#97df67" stroke-opacity=".4" stroke-width="2" stroke-dasharray="6 10"/>
+  <g transform="translate(1149 661)">
+    <rect x="-28" y="-14" width="56" height="28" rx="14" fill="#0a0a0a" stroke="#97df67" stroke-opacity=".5"/>
+    <text x="0" y="5" text-anchor="middle" font-size="14" font-weight="700" fill="#97df67">1 km</text>
+  </g>
+
+  <!-- route: you -> bakery -->
+  <path class="route" d="M958 470 C958 400 955 330 1000 312 S1400 285 1478 298" fill="none" stroke="#97df67" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 12"/>
+
+  <!-- shops -->
+  <g class="bob"><use href="#pin" x="470" y="262"/>
+    <rect x="502" y="198" width="88" height="32" rx="16" fill="#ffffff"/>
+    <text x="546" y="219" text-anchor="middle" font-size="15" font-weight="700" fill="#0a0a0a">Kirana</text></g>
+  <g class="bob2"><use href="#pin" x="1170" y="580"/>
+    <rect x="1202" y="516" width="108" height="32" rx="16" fill="#ffffff"/>
+    <text x="1256" y="537" text-anchor="middle" font-size="15" font-weight="700" fill="#0a0a0a">Pharmacy</text></g>
+  <g class="bob3"><use href="#pin" x="300" y="600"/>
+    <rect x="332" y="536" width="114" height="32" rx="16" fill="#ffffff"/>
+    <text x="389" y="557" text-anchor="middle" font-size="15" font-weight="700" fill="#0a0a0a">Stationery</text></g>
+  <g class="bob"><use href="#pin" x="1700" y="520"/>
+    <rect x="1732" y="456" width="72" height="32" rx="16" fill="#ffffff"/>
+    <text x="1768" y="477" text-anchor="middle" font-size="15" font-weight="700" fill="#0a0a0a">Café</text></g>
+  <g class="bob2"><use href="#pin" x="770" y="640"/>
+    <rect x="802" y="576" width="112" height="32" rx="16" fill="#ffffff"/>
+    <text x="858" y="597" text-anchor="middle" font-size="15" font-weight="700" fill="#0a0a0a">Fresh Mart</text></g>
+  <g class="bob3"><use href="#pin" x="1340" y="180"/>
+    <rect x="1372" y="116" width="76" height="32" rx="16" fill="#ffffff"/>
+    <text x="1410" y="137" text-anchor="middle" font-size="15" font-weight="700" fill="#0a0a0a">Dairy</text></g>
+
+  <!-- destination: bakery -->
+  <g><use href="#pinHot" x="1480" y="300"/>
+    <rect x="1518" y="226" width="150" height="40" rx="20" fill="#97df67" stroke="#0a0a0a" stroke-width="2"/>
+    <text x="1593" y="252" text-anchor="middle" font-size="16" font-weight="800" fill="#0a0a0a">Bakery · 6 min</text></g>
+
+  <!-- you -->
+  <circle class="pulse" cx="958" cy="470" r="16" fill="none" stroke="#97df67" stroke-width="3"/>
+  <circle cx="958" cy="470" r="16" fill="#97df67" stroke="#0a0a0a" stroke-width="5"/>
+  <g transform="translate(958 520)">
+    <rect x="-34" y="-15" width="68" height="30" rx="15" fill="#108652"/>
+    <text x="0" y="5" text-anchor="middle" font-size="14" font-weight="800" fill="#ffffff">You</text>
+  </g>
+
+  <!-- blend into the hero above -->
+  <rect width="1916" height="90" fill="url(#fadeTop)"/>
+</svg>
