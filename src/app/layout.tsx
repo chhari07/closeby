@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Anton } from "next/font/google";
+import { Plus_Jakarta_Sans, Galada } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Toaster } from "@/components/ui/sonner";
 import { BuyerOrderAlerts } from "@/components/buyer/order-alerts";
@@ -15,7 +15,8 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
 });
 
-const anton = Anton({
+// Display font for headings: Bengali-brush script (stand-in for "Banglta")
+const galada = Galada({
   variable: "--font-display",
   weight: "400",
   subsets: ["latin"],
@@ -33,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={cn("font-sans", plusJakarta.variable, anton.variable)}>
+      <html lang="en" className={cn("font-sans", plusJakarta.variable, galada.variable)}>
         <body className={cn(plusJakarta.variable, "font-sans antialiased")}>
           <BuyerOrderAlerts />
           <PresenceHeartbeat />

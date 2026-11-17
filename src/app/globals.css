@@ -65,102 +65,102 @@
 }
 
 :root {
-  /* CloseBy theme: forest-green ink, warm cream paper, electric-lime actions,
-     block-print accents (orange, river blue, sky, sun yellow, peach). */
-  --forest: oklch(0.273 0.047 158);
-  --cream: oklch(0.955 0.016 85);
+  /* CloseBy theme: "Retro" palette. Dark brown ink, cream paper, mustard
+     actions, retro red + wine accents, teal for the shop-owner side. */
+  --forest: #4c2215; /* dark brown ink (name kept so classes still work) */
+  --cream: #f2eac5; /* retro cream paper */
   --background: var(--cream);
   --foreground: var(--forest);
-  --card: oklch(0.985 0.009 85);
+  --card: #faf6e3;
   --card-foreground: var(--forest);
-  --popover: oklch(0.985 0.009 85);
+  --popover: #faf6e3;
   --popover-foreground: var(--forest);
-  --primary: oklch(0.83 0.25 145);
+  --primary: #e5a632; /* mustard */
   --primary-foreground: var(--forest);
-  --primary-ink: oklch(0.45 0.15 148);
-  --secondary: oklch(0.925 0.02 85);
+  --primary-ink: #9b1c26; /* wine */
+  --secondary: #ebe0b5;
   --secondary-foreground: var(--forest);
-  --muted: oklch(0.935 0.017 85);
-  --muted-foreground: oklch(0.45 0.03 155);
-  --accent: oklch(0.92 0.09 145);
+  --muted: #ede4be;
+  --muted-foreground: #6e5643;
+  --accent: #f4d8ae; /* peach */
   --accent-foreground: var(--forest);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.86 0.025 85);
-  --input: oklch(0.86 0.025 85);
-  --ring: oklch(0.62 0.22 145);
-  --brand-lime: oklch(0.83 0.25 145);
-  --brand-green: oklch(0.45 0.13 148);
-  --brand-orange: oklch(0.62 0.19 40);
-  --brand-yellow: oklch(0.88 0.16 95);
-  --brand-blue: oklch(0.52 0.17 258);
-  --brand-sky: oklch(0.87 0.06 215);
-  --brand-peach: oklch(0.86 0.08 45);
-  --brand-teal: oklch(0.5 0.1 190);
-  /* Auth brand panel background: forest for buyers, deep teal for shop owners. */
+  --destructive: #7a1018; /* darker than wine so errors stand apart */
+  --border: #ddd0a4;
+  --input: #ddd0a4;
+  --ring: #e03c31;
+  --brand-lime: #e5a632; /* mustard (main highlight) */
+  --brand-green: #2a8178; /* teal */
+  --brand-orange: #e03c31; /* retro red */
+  --brand-yellow: #f39623; /* orange */
+  --brand-blue: #9b1c26; /* wine */
+  --brand-sky: #72bea7; /* soft teal */
+  --brand-peach: #f4d8ae; /* peach */
+  --brand-teal: #1c424d; /* deep teal, shop owners */
+  /* Auth brand panel background: brown for buyers, deep teal for shop owners. */
   --panel: var(--forest);
   --status-progress: oklch(0.78 0.16 75);
   --status-ready: oklch(0.58 0.16 148);
   --status-stopped: oklch(0.6 0.22 27);
   --chart-1: var(--brand-lime);
-  --chart-2: var(--brand-green);
-  --chart-3: var(--brand-orange);
+  --chart-2: var(--brand-orange);
+  --chart-3: var(--brand-green);
   --chart-4: var(--brand-blue);
   --chart-5: var(--brand-yellow);
   --radius: 0.75rem;
-  --sidebar: oklch(0.985 0.009 85);
+  --sidebar: #faf6e3;
   --sidebar-foreground: var(--forest);
-  --sidebar-primary: oklch(0.83 0.25 145);
+  --sidebar-primary: #e5a632;
   --sidebar-primary-foreground: var(--forest);
-  --sidebar-accent: oklch(0.92 0.09 145);
+  --sidebar-accent: #f4d8ae;
   --sidebar-accent-foreground: var(--forest);
-  --sidebar-border: oklch(0.86 0.025 85);
-  --sidebar-ring: oklch(0.62 0.22 145);
+  --sidebar-border: #ddd0a4;
+  --sidebar-ring: #e03c31;
 }
 
-/* Shop-owner workspace: cooler teal palette so the seller side reads as a
-   different space from the warm orange buyer side. Set on <html> by RoleTheme. */
+/* Shop-owner workspace: teal palette so the seller side reads as a
+   different space from the warm mustard buyer side. Set on <html> by RoleTheme. */
 [data-role="shop_owner"] {
-  --primary: oklch(0.5 0.1 190);
-  --primary-foreground: oklch(0.99 0.01 190);
-  --secondary: oklch(0.97 0.012 190);
-  --secondary-foreground: oklch(0.3 0.06 190);
-  --accent: oklch(0.95 0.03 190);
-  --accent-foreground: oklch(0.3 0.06 190);
-  --ring: oklch(0.5 0.1 190);
-  --panel: oklch(0.3 0.06 190);
+  --primary: #2a8178;
+  --primary-foreground: #faf6e3;
+  --secondary: #e3efea;
+  --secondary-foreground: #1c424d;
+  --accent: #d3e8e1;
+  --accent-foreground: #1c424d;
+  --ring: #2a8178;
+  --panel: #1c424d;
 }
 
 .dark {
-  --background: oklch(0.2 0.04 155);
-  --foreground: oklch(0.955 0.016 85);
-  --card: oklch(0.25 0.045 155);
-  --card-foreground: oklch(0.955 0.016 85);
-  --popover: oklch(0.25 0.045 155);
-  --popover-foreground: oklch(0.955 0.016 85);
-  --primary: oklch(0.83 0.25 145);
-  --primary-foreground: oklch(0.2 0.04 155);
-  --primary-ink: oklch(0.83 0.25 145);
-  --secondary: oklch(0.3 0.045 155);
-  --secondary-foreground: oklch(0.955 0.016 85);
-  --muted: oklch(0.28 0.04 155);
-  --muted-foreground: oklch(0.75 0.03 130);
-  --accent: oklch(0.32 0.07 150);
-  --accent-foreground: oklch(0.955 0.016 85);
-  --destructive: oklch(0.704 0.191 22.216);
+  --background: #2a140c;
+  --foreground: #f2eac5;
+  --card: #371d13;
+  --card-foreground: #f2eac5;
+  --popover: #371d13;
+  --popover-foreground: #f2eac5;
+  --primary: #e5a632;
+  --primary-foreground: #2a140c;
+  --primary-ink: #edb64f;
+  --secondary: #432519;
+  --secondary-foreground: #f2eac5;
+  --muted: #3d2116;
+  --muted-foreground: #cdbf9c;
+  --accent: #4d2a1a;
+  --accent-foreground: #f2eac5;
+  --destructive: #f07a6e;
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.83 0.25 145);
-  --brand-green: oklch(0.65 0.17 148);
-  --brand-orange: oklch(0.72 0.17 45);
-  --brand-blue: oklch(0.65 0.17 255);
-  --sidebar: oklch(0.25 0.045 155);
-  --sidebar-foreground: oklch(0.955 0.016 85);
-  --sidebar-primary: oklch(0.83 0.25 145);
-  --sidebar-primary-foreground: oklch(0.2 0.04 155);
-  --sidebar-accent: oklch(0.32 0.07 150);
-  --sidebar-accent-foreground: oklch(0.955 0.016 85);
+  --ring: #e5a632;
+  --brand-green: #5fb8a9;
+  --brand-orange: #f06a52;
+  --brand-blue: #d4545c;
+  --sidebar: #371d13;
+  --sidebar-foreground: #f2eac5;
+  --sidebar-primary: #e5a632;
+  --sidebar-primary-foreground: #2a140c;
+  --sidebar-accent: #4d2a1a;
+  --sidebar-accent-foreground: #f2eac5;
   --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.83 0.25 145);
+  --sidebar-ring: #e5a632;
   --status-ready: oklch(0.7 0.17 148);
 }
 
@@ -174,8 +174,7 @@
   h1,
   h2 {
     font-family: var(--font-display), var(--font-sans), sans-serif;
-    text-transform: uppercase;
-    letter-spacing: -0.005em;
+    letter-spacing: 0;
   }
   html {
     @apply font-sans;

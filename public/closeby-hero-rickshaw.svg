@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2400 1030" width="2400" height="1030">
+  <defs>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.07 0"/>
+    </filter>
+    <pattern id="zig" width="40" height="24" patternUnits="userSpaceOnUse">
+      <path d="M0 20 L10 4 L20 20 L30 4 L40 20" fill="none" stroke="#2a120b" stroke-width="4" stroke-linejoin="round"/>
+    </pattern>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="14" cy="14" r="5" fill="#f2eac5"/>
+    </pattern>
+    <pattern id="scallop" width="44" height="30" patternUnits="userSpaceOnUse">
+      <path d="M0 0 Q22 40 44 0 Z" fill="#e03c31"/>
+      <circle cx="22" cy="12" r="4" fill="#ffd166"/>
+    </pattern>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#e5a632" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#e5a632" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Madhubani-style fish -->
+    <g id="fish">
+      <path d="M0 0 Q40 -34 90 0 Q40 34 0 0 Z" fill="#f2eac5" stroke="#2a120b" stroke-width="4"/>
+      <path d="M90 0 L120 -22 L114 0 L120 22 Z" fill="#e03c31" stroke="#2a120b" stroke-width="4" stroke-linejoin="round"/>
+      <circle cx="22" cy="-4" r="6" fill="#2a120b"/>
+      <path d="M40 -14 Q50 0 40 14 M56 -16 Q66 0 56 16 M72 -12 Q80 0 72 12" fill="none" stroke="#2a120b" stroke-width="3"/>
+    </g>
+    <!-- marigold -->
+    <g id="marigold">
+      <circle r="16" fill="#f39623"/>
+      <circle r="10" fill="#e5a632"/>
+      <circle r="4" fill="#c2410c"/>
+    </g>
+    <!-- folk flower -->
+    <g id="flower">
+      <g fill="#f2eac5" stroke="#2a120b" stroke-width="3">
+        <ellipse cx="0" cy="-18" rx="9" ry="16"/>
+        <ellipse cx="0" cy="18" rx="9" ry="16"/>
+        <ellipse cx="-18" cy="0" rx="16" ry="9"/>
+        <ellipse cx="18" cy="0" rx="16" ry="9"/>
+      </g>
+      <circle r="9" fill="#e03c31" stroke="#2a120b" stroke-width="3"/>
+    </g>
+    <!-- bird -->
+    <g id="bird">
+      <path d="M0 0 Q30 -40 70 -10 Q90 -30 110 -22 Q96 -4 80 4 Q50 30 0 0 Z" fill="#2a8178" stroke="#f2eac5" stroke-width="3"/>
+      <path d="M20 -4 Q44 -26 66 -6" fill="none" stroke="#f2eac5" stroke-width="3"/>
+      <circle cx="94" cy="-18" r="3.5" fill="#2a120b"/>
+      <path d="M110 -22 L124 -20 L110 -14 Z" fill="#e5a632"/>
+    </g>
+  </defs>
+
+  <!-- background -->
+  <rect width="2400" height="1030" fill="#4c2215"/>
+  <ellipse cx="1240" cy="700" rx="900" ry="380" fill="url(#glow)"/>
+
+  <!-- folk sun, top-right -->
+  <g transform="translate(1960 380)">
+    <g stroke="#e5a632" stroke-width="8" stroke-linecap="round">
+      <line x1="0" y1="-120" x2="0" y2="-150"/><line x1="0" y1="120" x2="0" y2="150"/>
+      <line x1="-120" y1="0" x2="-150" y2="0"/><line x1="120" y1="0" x2="150" y2="0"/>
+      <line x1="85" y1="85" x2="106" y2="106"/><line x1="-85" y1="85" x2="-106" y2="106"/>
+      <line x1="85" y1="-85" x2="106" y2="-106"/><line x1="-85" y1="-85" x2="-106" y2="-106"/>
+    </g>
+    <circle r="96" fill="#f39623"/>
+    <circle r="96" fill="none" stroke="#f2eac5" stroke-width="5" stroke-dasharray="4 14" stroke-linecap="round"/>
+    <circle r="66" fill="#e5a632"/>
+    <path d="M-30 -14 q10 -10 20 0 M10 -14 q10 -10 20 0" fill="none" stroke="#2a120b" stroke-width="5" stroke-linecap="round"/>
+    <path d="M-24 18 Q0 40 24 18" fill="none" stroke="#2a120b" stroke-width="5" stroke-linecap="round"/>
+  </g>
+
+  <!-- birds -->
+  <use href="#bird" transform="translate(560 420) scale(0.9)"/>
+  <use href="#bird" transform="translate(700 340) scale(0.6)"/>
+
+  <!-- hanging garland of marigolds across top of scene -->
+  <path d="M380 300 Q1200 470 2080 290" fill="none" stroke="#5fb8a9" stroke-width="5"/>
+  <g>
+    <use href="#marigold" x="460" y="320"/><use href="#marigold" x="580" y="350"/>
+    <use href="#marigold" x="700" y="374"/><use href="#marigold" x="820" y="392"/>
+    <use href="#marigold" x="940" y="404"/><use href="#marigold" x="1060" y="410"/>
+    <use href="#marigold" x="1180" y="412"/><use href="#marigold" x="1300" y="408"/>
+    <use href="#marigold" x="1420" y="398"/><use href="#marigold" x="1540" y="382"/>
+    <use href="#marigold" x="1660" y="360"/><use href="#marigold" x="1780" y="334"/>
+  </g>
+  <g fill="#5fb8a9">
+    <path d="M640 362 l-10 22 l18 -6 z"/><path d="M1000 407 l-6 24 l16 -10 z"/>
+    <path d="M1360 404 l6 24 l-16 -10 z"/><path d="M1720 348 l10 22 l-18 -6 z"/>
+  </g>
+
+  <!-- ground -->
+  <path d="M0 905 Q1200 870 2400 905 L2400 1030 L0 1030 Z" fill="#3a190f"/>
+  <path d="M0 905 Q1200 870 2400 905" fill="none" stroke="#e5a632" stroke-opacity="0.35" stroke-width="3" stroke-dasharray="2 18" stroke-linecap="round"/>
+  <ellipse cx="1240" cy="935" rx="620" ry="34" fill="#1f0c06" opacity="0.7"/>
+
+  <!-- side flowers on ground (right) -->
+  <g transform="translate(2050 880)">
+    <path d="M0 0 C-6 -60 10 -100 0 -150" stroke="#5fb8a9" stroke-width="6" fill="none"/>
+    <path d="M0 -60 q40 -30 70 -10 q-40 20 -70 10z" fill="#5fb8a9"/>
+    <use href="#flower" y="-160"/>
+  </g>
+  <g transform="translate(2180 890) scale(0.8)">
+    <path d="M0 0 C6 -60 -10 -100 0 -140" stroke="#5fb8a9" stroke-width="6" fill="none"/>
+    <path d="M0 -70 q-40 -30 -70 -10 q40 20 70 10z" fill="#5fb8a9"/>
+    <use href="#flower" y="-150"/>
+  </g>
+
+  <!-- ===================== AUTO-RICKSHAW ===================== -->
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <!-- rear wheel -->
+    <g transform="translate(1480 862)">
+      <circle r="72" fill="#1a0a05"/>
+      <circle r="42" fill="#e03c31" stroke="#f2eac5" stroke-width="5"/>
+      <circle r="42" fill="none" stroke="#2a120b" stroke-width="6" stroke-dasharray="6 12"/>
+      <circle r="13" fill="#e5a632" stroke="#2a120b" stroke-width="4"/>
+    </g>
+    <!-- front fork + wheel -->
+    <path d="M905 790 L882 868" stroke="#2a120b" stroke-width="16"/>
+    <path d="M905 790 L882 868" stroke="#e5a632" stroke-width="6"/>
+    <g transform="translate(880 872)">
+      <circle r="62" fill="#1a0a05"/>
+      <circle r="35" fill="#e03c31" stroke="#f2eac5" stroke-width="5"/>
+      <circle r="35" fill="none" stroke="#2a120b" stroke-width="6" stroke-dasharray="6 12"/>
+      <circle r="11" fill="#e5a632" stroke="#2a120b" stroke-width="4"/>
+    </g>
+    <path d="M808 830 Q880 760 952 830" fill="none" stroke="#2a120b" stroke-width="14"/>
+    <path d="M808 830 Q880 760 952 830" fill="none" stroke="#2a8178" stroke-width="7"/>
+
+    <!-- dark interior behind the openings -->
+    <rect x="995" y="470" width="590" height="235" fill="#2a120b"/>
+
+    <!-- driver seat + handlebar -->
+    <path d="M1000 600 L1060 575" stroke="#e5a632" stroke-width="9"/>
+    <rect x="1110" y="610" width="80" height="28" rx="10" fill="#e03c31" stroke="#2a120b" stroke-width="4"/>
+    <!-- passenger seat back -->
+    <rect x="1225" y="640" width="345" height="60" rx="12" fill="#e03c31" stroke="#2a120b" stroke-width="5"/>
+
+    <!-- cargo: kirana sack -->
+    <path d="M1235 645 L1245 560 Q1295 540 1345 560 L1355 645 Z" fill="#e9d3a8" stroke="#2a120b" stroke-width="5"/>
+    <path d="M1255 562 Q1295 532 1335 562" fill="none" stroke="#2a120b" stroke-width="4"/>
+    <g fill="#5fb8a9"><path d="M1275 552 q-12 -44 10 -64 q8 32 -10 64z"/><path d="M1308 550 q12 -46 -6 -66 q-12 32 6 66z"/></g>
+    <!-- cargo: pharmacy box -->
+    <rect x="1365" y="565" width="110" height="80" rx="6" fill="#ffffff" stroke="#2a120b" stroke-width="5"/>
+    <path d="M1420 580 v48 M1396 604 h48" stroke="#5fb8a9" stroke-width="12"/>
+    <!-- cargo: pencils -->
+    <g stroke="#2a120b" stroke-width="3">
+      <rect x="1455" y="520" width="14" height="50" fill="#e5a632" transform="rotate(12 1462 545)"/>
+      <rect x="1476" y="516" width="14" height="54" fill="#2a8178" transform="rotate(-8 1483 545)"/>
+    </g>
+    <!-- cargo: bread -->
+    <path d="M1480 645 Q1480 585 1528 585 Q1576 585 1576 645 Z" fill="#d8893a" stroke="#2a120b" stroke-width="5"/>
+    <path d="M1510 596 l-6 24 M1540 594 l-5 26" stroke="#f6c58a" stroke-width="5"/>
+
+    <!-- lower body -->
+    <path d="M960 700 L1585 700 L1585 585 Q1650 595 1664 665 L1670 798 Q1668 828 1640 828 L1556 828 Q1532 764 1480 764 Q1428 764 1404 828 L1000 828 L960 795 Z"
+          fill="#2a8178" stroke="#2a120b" stroke-width="7"/>
+    <path d="M1010 806 L1398 806" stroke="#f2eac5" stroke-width="20"/>
+    <rect x="1010" y="796" width="388" height="20" fill="url(#zig)" opacity="0.8"/>
+    <use href="#fish" transform="translate(1020 752) scale(0.85)"/>
+    <use href="#fish" transform="translate(1385 752) scale(-0.85 0.85)"/>
+    <use href="#flower" transform="translate(1202 752) scale(0.85)"/>
+    <!-- rear panel motif -->
+    <g transform="translate(1625 690)">
+      <circle r="26" fill="#f2eac5" stroke="#2a120b" stroke-width="4"/>
+      <circle r="12" fill="#e03c31"/>
+    </g>
+    <rect x="1660" y="720" width="20" height="44" rx="6" fill="#e03c31" stroke="#2a120b" stroke-width="5"/>
+
+    <!-- front nose -->
+    <path d="M1000 560 L1000 795 L960 800 L870 800 Q842 700 852 625 Q862 572 905 560 Z"
+          fill="#f2eac5" stroke="#2a120b" stroke-width="7"/>
+    <path d="M868 760 Q860 690 872 640" fill="none" stroke="#e03c31" stroke-width="10"/>
+    <g fill="#e03c31"><circle cx="925" cy="660" r="7"/><circle cx="945" cy="690" r="7"/><circle cx="918" cy="705" r="7"/><circle cx="950" cy="735" r="7"/></g>
+    <path d="M900 770 L990 770" stroke="#2a120b" stroke-width="5"/>
+    <circle cx="868" cy="604" r="24" fill="#e5a632" stroke="#2a120b" stroke-width="6"/>
+    <circle cx="868" cy="604" r="10" fill="#fff8e0"/>
+
+    <!-- windshield -->
+    <path d="M905 560 L965 448 L1000 448 L1000 560 Z" fill="#72bea7" fill-opacity="0.6" stroke="#2a120b" stroke-width="6"/>
+    <path d="M930 545 L968 470" stroke="#ffffff" stroke-opacity="0.75" stroke-width="6"/>
+
+    <!-- hood: flat top, rounded rear sweeping down -->
+    <path d="M945 470 Q955 418 1030 416 L1470 416 Q1600 416 1648 528 Q1662 566 1656 596 L1585 596 L1585 480 L945 480 Z"
+          fill="#f2eac5" stroke="#2a120b" stroke-width="7"/>
+    <path d="M1010 446 L1520 446 Q1590 450 1620 520" fill="none" stroke="#e03c31" stroke-width="18"/>
+    <rect x="1010" y="437" width="500" height="18" fill="url(#zig)" opacity="0.55"/>
+    <rect x="945" y="480" width="640" height="30" fill="url(#scallop)"/>
+    <path d="M945 480 L1585 480" stroke="#2a120b" stroke-width="6"/>
+
+    <!-- pillars -->
+    <path d="M1000 448 L1000 560 M1205 510 L1205 700 M1585 510 L1585 700" stroke="#2a120b" stroke-width="11"/>
+    <path d="M1205 510 L1205 700 M1585 510 L1585 700" stroke="#e5a632" stroke-width="4"/>
+
+    <!-- location pin above the hood -->
+    <g transform="translate(1290 350)">
+      <path d="M0 50 C-40 0 -40 -50 0 -50 C40 -50 40 0 0 50 Z" fill="#e03c31" stroke="#f2eac5" stroke-width="6"/>
+      <circle cy="-14" r="15" fill="#f2eac5"/>
+      <g stroke="#f2eac5" stroke-width="5">
+        <line x1="-62" y1="-40" x2="-80" y2="-52"/><line x1="62" y1="-40" x2="80" y2="-52"/><line x1="0" y1="-74" x2="0" y2="-94"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- shopping bag beside rickshaw -->
+  <g transform="translate(1770 790)" stroke="#2a120b" stroke-width="5" stroke-linejoin="round">
+    <path d="M-30 -60 Q0 -110 30 -60" fill="none"/>
+    <path d="M-60 -60 L60 -60 L70 110 L-70 110 Z" fill="#e03c31"/>
+    <use href="#flower" transform="translate(0 25) scale(1.1)"/>
+  </g>
+
+  <rect width="2400" height="1030" filter="url(#grain)"/>
+</svg>

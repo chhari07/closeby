@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db/client";
-import { toProduct } from "@/lib/db/rows";
+import { findProduct, toProduct } from "@/lib/db/rows";
 import { productImageUploadTarget } from "@/lib/supabase/admin";
 import { requireUserId as requireAuthedUserId, assertShopOwnership } from "@/lib/auth/guards";
 import {
@@ -46,11 +46,13 @@ export async function getLowStockProducts(
   shopId: string,
   max = 20,
 ): Promise<ProductDoc[]> {
+  const userId = await requireAuthedUserId();
+  await assertShopOwnership(userId, shopId);
   const rows = await db()`
     select * from products
     where shop_id = ${shopId} and stock <= ${LOW_STOCK_THRESHOLD}
     order by stock asc
-    limit ${max}
+    limit ${Math.min(Math.max(1, Math.floor(max)), 50)}
   `;
   return rows.map(toProduct);
 }
@@ -318,8 +320,10 @@ export async function createProductImageUpload(
   const userId = await requireAuthedUserId();
   await assertShopOwnership(userId, shopId);
   if (!contentType.startsWith("image/")) return { ok: false, error: "Only images can be uploaded" };
+  const product = await findProduct(shopId, productId);
+  if (!product) return { ok: false, error: "Product not found" };
   const safeName = fileName.replace(/[^\w.-]+/g, "_").slice(-80) || "photo";
-  const path = `shops/${shopId}/products/${productId}/${Date.now()}-${safeName}`;
+  const path = `shops/${shopId}/products/${product.id}/${Date.now()}-${safeName}`;
   const target = await productImageUploadTarget(path);
   return { ok: true, data: target };
 }

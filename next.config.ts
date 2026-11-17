@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
+// Dev tunnels are for testing on a phone locally — never trusted in production.
+const isDev = process.env.NODE_ENV === "development";
+const devTunnels = isDev ? ["*.devtunnels.ms", "**.devtunnels.ms"] : [];
+
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   images: {
@@ -13,10 +17,10 @@ const nextConfig: NextConfig = {
   // (<id>-3000.<region>.devtunnels.ms): the tunnel's Origin doesn't match the
   // forwarded host, so Next rejects Server Actions ("Invalid Server Actions
   // request") and blocks dev assets unless the tunnel domain is allowed.
-  allowedDevOrigins: ["*.devtunnels.ms", "**.devtunnels.ms"],
+  allowedDevOrigins: devTunnels,
   experimental: {
     serverActions: {
-      allowedOrigins: ["localhost:3000", "*.devtunnels.ms", "**.devtunnels.ms"],
+      allowedOrigins: isDev ? ["localhost:3000", ...devTunnels] : [],
     },
   },
 };

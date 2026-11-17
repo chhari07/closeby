@@ -79,10 +79,11 @@ export default async function Home() {
 
         <div className="relative mt-10 aspect-[1916/821] min-h-[260px] w-full">
           <Image
-            src="/closeby-hero.png"
-            alt="Illustrated neighbourhood street with a kirana, pharmacy, stationery, bakery, fresh mart and café"
+            src="/closeby-hero-rickshaw.svg"
+            alt="Folk-art painted auto-rickshaw carrying groceries, medicine, bread and stationery under a marigold garland"
             fill
             priority
+            unoptimized
             sizes="100vw"
             className="object-cover object-bottom"
           />
